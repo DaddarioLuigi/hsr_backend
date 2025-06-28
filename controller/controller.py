@@ -54,15 +54,44 @@ def process_document_and_entities(filepath: str, patient_id: str, document_type:
 
     document_text = get_cleaned_text(all_text, all_tables)
 
-    response_json_str = asyncio.run(
-        get_response_from_document(document_text, document_type, model=MODEL_NAME)
-    )
+    response_json_str = get_response_from_document(document_text, document_type, model=MODEL_NAME)
 
     try:
         entities = json.loads(response_json_str)
     except json.JSONDecodeError:
         entities = []
 
+    # Validazione coerenza tra patient_id e entità
+    estratti = {e["entità"]: e["valore"] for e in entities if isinstance(e, dict)}
+
+    numero_cartella = estratti.get("n_cartella")
+    nome = estratti.get("nome")
+    cognome = estratti.get("cognome")
+    data_nascita = estratti.get("data_di_nascita")
+
+    if numero_cartella:
+        if str(numero_cartella) != str(patient_id):
+            return {"error": "Il numero cartella nel documento non corrisponde al patient_id fornito."}, 400
+    elif nome and cognome and data_nascita:
+        match_found = False
+        for pid in os.listdir(UPLOAD_FOLDER):
+            json_path = os.path.join(UPLOAD_FOLDER, pid, document_type, "entities.json")
+            if os.path.exists(json_path):
+                with open(json_path) as f:
+                    previous = json.load(f)
+                    p = {e["entità"]: e["valore"] for e in previous if isinstance(e, dict)}
+                    if (
+                        p.get("n_cartella") == str(patient_id)
+                        and p.get("nome") == nome
+                        and p.get("cognome") == cognome
+                        and p.get("data_di_nascita") == data_nascita
+                    ):
+                        match_found = True
+                        break
+        if not match_found:
+            return {"error": "I dati anagrafici non corrispondono ad alcuna cartella clinica esistente."}, 400
+
+    # Salva le entità in un file JSON
     output_path = os.path.join(UPLOAD_FOLDER, patient_id, document_type, "entities.json")
     with open(output_path, "w") as f:
         json.dump(entities, f, indent=2, ensure_ascii=False)
