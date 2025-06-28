@@ -1,20 +1,59 @@
 import os
 import json
+import pdfplumber
 from llm import get_response_from_document
+import asyncio
+import numpy as np
 
 # Per ora la simulazione è sincrona per test locale (consigliato da GPT boh)
 import asyncio
 
 UPLOAD_FOLDER = "uploads"
-MODEL_NAME = "your-model-name"
+MODEL_NAME = "deepseek-ai/DeepSeek-V3"
 
+def get_text_to_remove(all_tables):
+    text_to_remove = []
+    if len(all_tables) > 1:
+        for table in all_tables:
+            table_np = np.array(table)
+            text_to_remove.extend([
+                str(" ".join(row)).replace(" ", "").replace("\n", "") for row in table_np
+            ])
+    else:
+        all_tables_np = np.array(all_tables)
+        all_tables_flat = all_tables_np.reshape(-1, all_tables_np.shape[-1])
+        text_to_remove.extend([
+            str(" ".join(row)).replace(" ", "").replace("\n", "") for row in all_tables_flat
+        ])
+    return text_to_remove
+
+def remove_tables(all_text, text_to_remove):
+    clean_text = all_text
+    for row in clean_text.split('\n'):
+        row_ = row.replace(" ", "").replace("\n", "")
+        if row_ in text_to_remove:
+            clean_text = clean_text.replace(row + '\n', '')
+    return clean_text
+
+def get_cleaned_text(all_text, all_tables):
+    if len(all_tables) > 0:
+        text_to_remove = get_text_to_remove(all_tables)
+        cleaned_text = remove_tables(all_text, text_to_remove)
+    else:
+        cleaned_text = all_text
+    return cleaned_text
 
 def process_document_and_entities(filepath: str, patient_id: str, document_type: str) -> dict:
-    # solo testo (GPT)
-    with open(filepath, "r") as f:
-        document_text = f.read()
+    with pdfplumber.open(filepath) as pdf:
+        all_text = "\n".join([page.extract_text() or "" for page in pdf.pages])
+        all_tables = []
+        for page in pdf.pages:
+            tables = page.extract_tables()
+            if tables:
+                all_tables.extend(tables)
 
-    # Chiama il modello LLM
+    document_text = get_cleaned_text(all_text, all_tables)
+
     response_json_str = asyncio.run(
         get_response_from_document(document_text, document_type, model=MODEL_NAME)
     )
@@ -24,15 +63,12 @@ def process_document_and_entities(filepath: str, patient_id: str, document_type:
     except json.JSONDecodeError:
         entities = []
 
-    # Salva il JSON per futura modifica
     output_path = os.path.join(UPLOAD_FOLDER, patient_id, document_type, "entities.json")
     with open(output_path, "w") as f:
         json.dump(entities, f, indent=2, ensure_ascii=False)
 
     return {"entities": entities}
 
-
-#la logica è OK
 def update_entities_for_document(patient_id: str, document_type: str, filename: str, updated_entities=None, preview=False):
     path = os.path.join(UPLOAD_FOLDER, patient_id, document_type, "entities.json")
     if preview or not updated_entities:
@@ -46,8 +82,15 @@ def update_entities_for_document(patient_id: str, document_type: str, filename: 
 
     return {"status": "updated"}
 
-
 def export_excel_file():
-    # Da implementare nel modulo excel_manager.py
     path = "export/output.xlsx"
     return path
+
+def list_existing_patients():
+    patients = []
+    if os.path.exists(UPLOAD_FOLDER):
+        for patient_id in os.listdir(UPLOAD_FOLDER):
+            patient_path = os.path.join(UPLOAD_FOLDER, patient_id)
+            if os.path.isdir(patient_path):
+                patients.append(patient_id)
+    return {"patients": patients}
