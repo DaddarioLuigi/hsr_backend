@@ -43,6 +43,12 @@ def get_cleaned_text(all_text, all_tables):
         cleaned_text = all_text
     return cleaned_text
 
+def remove_patient_folder_if_exists(patient_id: str):
+    folder_path = os.path.join(UPLOAD_FOLDER, patient_id)
+    if os.path.exists(folder_path):
+        import shutil
+        shutil.rmtree(folder_path)
+
 def process_document_and_entities(filepath: str, patient_id: str, document_type: str) -> dict:
     with pdfplumber.open(filepath) as pdf:
         all_text = "\n".join([page.extract_text() or "" for page in pdf.pages])
@@ -53,7 +59,6 @@ def process_document_and_entities(filepath: str, patient_id: str, document_type:
                 all_tables.extend(tables)
 
     document_text = get_cleaned_text(all_text, all_tables)
-
     response_json_str = get_response_from_document(document_text, document_type, model=MODEL_NAME)
 
     try:
@@ -61,9 +66,7 @@ def process_document_and_entities(filepath: str, patient_id: str, document_type:
     except json.JSONDecodeError:
         entities = []
 
-    # Validazione coerenza tra patient_id e entità
     estratti = {e["entità"]: e["valore"] for e in entities if isinstance(e, dict)}
-
     numero_cartella = estratti.get("n_cartella")
     nome = estratti.get("nome")
     cognome = estratti.get("cognome")
@@ -71,6 +74,9 @@ def process_document_and_entities(filepath: str, patient_id: str, document_type:
 
     if numero_cartella:
         if str(numero_cartella) != str(patient_id):
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            remove_patient_folder_if_exists(patient_id)
             return {"error": "Il numero cartella nel documento non corrisponde al patient_id fornito."}, 400
     elif nome and cognome and data_nascita:
         match_found = False
@@ -89,10 +95,13 @@ def process_document_and_entities(filepath: str, patient_id: str, document_type:
                         match_found = True
                         break
         if not match_found:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            remove_patient_folder_if_exists(patient_id)
             return {"error": "I dati anagrafici non corrispondono ad alcuna cartella clinica esistente."}, 400
 
-    # Salva le entità in un file JSON
     output_path = os.path.join(UPLOAD_FOLDER, patient_id, document_type, "entities.json")
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "w") as f:
         json.dump(entities, f, indent=2, ensure_ascii=False)
 
