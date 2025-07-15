@@ -10,7 +10,7 @@ from .prompts import get_prompt_for
 load_dotenv()
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
 async_client = Together(api_key=TOGETHER_API_KEY)
-
+ 
 def get_response_from_document(document_text: str, document_type: str, model: str) -> str:
     prompt = get_prompt_for(document_type) + "\n\n" + document_text
     print(get_prompt_for(document_type))

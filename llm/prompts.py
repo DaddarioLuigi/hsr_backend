@@ -197,6 +197,52 @@ Esempio di output:
   { "entità": "coro_iva_stenosi50", "valore": false }
   ...
 ]
+''',
+"intervento":
+'''
+Sei un medico cardiochirurgo. Il tuo compito è estrarre esclusivamente le seguenti entità dal referto di intervento cardiochirurgico qui sotto riportato.
+
+### Entità da estrarre:
+
+| Entità                   | Tipo            | Descrizione                                              |
+|-------------------------|-----------------|----------------------------------------------------------|
+| n_cartella              | Number          | Numero identificativo della cartella clinica             |
+| data_intervento         | Date            | Data dell'intervento eseguito                            |
+| intervento text         | Text            | Descrizione completa dell’intervento                     |
+| primo operatore         | Text            | Nome del primo operatore                                 |
+| redo                    | Boolean         | Se l'intervento è un redo (re-intervento)               |
+| cec                     | Boolean         | Uso di circolazione extracorporea (CEC)                 |
+| cannulazionearteriosa   | Text            | Tipo di cannulazione arteriosa utilizzata               |
+| statopaz                | Text            | Stato del paziente al termine dell’intervento          |
+| cardioplegia            | Text            | Tipo di cardioplegia                                     |
+| approcciochirurgico     | Text            | Approccio chirurgico adottato                            |
+| entratainsala           | Time            | Ora di ingresso in sala operatoria                      |
+| iniziointervento        | Time            | Ora di inizio intervento                                 |
+| iniziocec               | Time            | Ora di inizio CEC                                        |
+| inizioclamp             | Time            | Ora di inizio clampaggio                                 |
+| inizioacc               | Time            | Ora di inizio accensione                                 |
+| fineacc                 | Time            | Ora di fine accensione                                   |
+| fineclamp               | Time            | Ora di fine clampaggio                                   |
+| finecec                 | Time            | Ora di fine CEC                                          |
+| fineintervento          | Time            | Ora di fine intervento                                   |
+| uscitasala              | Time            | Ora di uscita dalla sala operatoria                      |
+| intervento              | Text            | Tipo principale di intervento                            |
+| protesi                 | Text            | Tipo di protesi utilizzata                               |
+| modello                 | Text            | Modello della protesi                                    |
+| numero                  | Number          | Numero seriale della protesi                             |
+
+---
+
+### Istruzioni Importanti:
+
+- Non estrarre nessuna entità diversa da quelle elencate.
+- Se un’entità non è presente nel documento, non inventarla.
+- Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con due chiavi:
+    - "entità": il nome dell’entità
+    - "valore": il valore estratto
+- Nessuna spiegazione, nessun commento, solo la lista JSON.
+
+---
 '''
 }
 def get_prompt_for(document_type: str) -> str:
