@@ -145,8 +145,60 @@ IRC (crea all'ingresso 2,64 mg/dl).
   { "entità": "familiarita cardiovascolare", "valore": true }
 ]
 
+''',
+   "coronarografia": '''
+Sei un medico specializzato in cardiologia interventistica. Il tuo compito è estrarre esclusivamente le seguenti entità dal referto di coronarografia riportato qui sotto.
+
+### Entità da estrarre (solo queste):
+
+| Entità                    | Tipo              |
+|--------------------------|-------------------|
+| n_cartella               | Number            |
+| nome                     | Text              |
+| cognome                  | Text              |
+| data_di_nascita          | Date              |
+| data_esame               | Date              |
+| coronarografia text      | Text              |
+| coro_tc_stenosi50        | Boolean           |
+| coro_iva_stenosi50       | Boolean           |
+| coro_cx_stenosi50        | Boolean           |
+| coro_mo1_stenosi50       | Boolean           |
+| coro_mo2_stenosi50       | Boolean           |
+| coro_mo3_stenosi50       | Boolean           |
+| coro_int_stenosi50       | Boolean           |
+| coro_plcx_stenosi50      | Boolean           |
+| coro_dx_stenosi50        | Boolean           |
+| coro_pl_stenosi50        | Boolean           |
+| coro_ivp_stenosi50       | Boolean           |
+
+---
+
+### Istruzioni IMPORTANTI:
+
+- Ragiona considerando frase per frase.
+- Non estrarre nessuna entità diversa da quelle elencate.
+- Se un'entità non è presente nel referto, non inventarla e non includerla nel risultato.
+- Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con due chiavi:
+    - "entità": il nome dell'entità
+    - "valore": il valore estratto dell'entità
+NON aggiungere commenti, spiegazioni, note, intestazioni o altro: solo la lista JSON.
+
+Esempio di output:
+
+```json
+[
+  { "entità": "n_cartella", "valore": "2025003002" },
+  { "entità": "nome", "valore": "MASSIMO" },
+  { "entità": "cognome", "valore": "RICCA" },
+  { "entità": "data_di_nascita", "valore": "17/02/1966" },
+  { "entità": "data_esame", "valore": "12/06/2025" },
+  { "entità": "coronarografia text", "valore": "Paziente sottoposto a coronarografia..." },
+  { "entità": "coro_tc_stenosi50", "valore": true },
+  { "entità": "coro_iva_stenosi50", "valore": false }
+  ...
+]
 '''
 }
 def get_prompt_for(document_type: str) -> str:
-    return PROMPTS[document_type]
+    return PROMPTS[document_type] 
 
