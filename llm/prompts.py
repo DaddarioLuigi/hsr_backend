@@ -96,6 +96,7 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre **esc
 - Non estrarre **nessuna entità** diversa da quelle elencate.
 - Se un'entità non è presente nella lettera, **non inventarla** e **non includerla** nel risultato.
 - Attenzione però i nomi delle entità che vedi sopra sono in alcuni casi degli acronimi o diminutivi delle entità.
+- Cerca tutte le entità indicate
 - Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con **due chiavi**:
     - `"entità"`: il nome dell'entità
     - `"valore"`: il valore estratto dell'entità

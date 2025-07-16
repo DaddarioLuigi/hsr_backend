@@ -17,10 +17,129 @@ UPLOAD_FOLDER = "uploads"
 EXPORT_PATH = "export/output.xlsx"
 MODEL_NAME = "deepseek-ai/DeepSeek-V3"
 SHEET_ENTITIES = {
-    "lettera_dimissione": ["n_cartella", "nome", "cognome", "data_di_nascita", "data_dimissione_cch", "Diagnosi", "Motivo ricovero"],
-    "coronarografia": ["n_cartella", "nome", "cognome", "data_di_nascita", "data_esame", "coronarografia text", "coro_tc_stenosi50", "coro_iva_stenosi50", "coro_cx_stenosi50", "coro_mo1_stenosi50", "coro_mo2_stenosi50", "coro_mo3_stenosi50", "coro_int_stenosi50", "coro_plcx_stenosi50", "coro_dx_stenosi50", "coro_pl_stenosi50", "coro_ivp_stenosi50"],
-    "intervento": ["n_cartella", "nome", "cognome", "data_di_nascita", "data_intervento", "intervento text", "primo operatore", "redo", "cec", "cannulazionearteriosa", "statopaz", "cardioplegia", "approcciochirurgico", "entratainsala", "iniziointervento", "iniziocec", "inizioclamp", "inizioacc", "fineacc", "fineclamp", "finecec", "fineintervento", "uscitasala", "intervento", "protesi", "modello", "numero"]
+    "lettera_dimissione": [
+        "n_cartella",
+        "data_ingresso_cch",
+        "data_dimissione_cch",
+        "nome",
+        "cognome",
+        "sesso",
+        "numero di telefono",
+        "età al momento dell'intervento",
+        "data_di_nascita",
+        "Diagnosi",
+        "Anamnesi",
+        "Motivo ricovero",
+        "classe_nyha",
+        "angor",
+        "STEMI/NSTEMI",
+        "scompenso_cardiaco_nei_3_mesi_precedenti",
+        "fumo",
+        "diabete",
+        "ipertensione",
+        "dislipidemia",
+        "BPCO",
+        "stroke_pregresso",
+        "TIA_pregresso",
+        "vasculopatiaperif",
+        "neoplasia_pregressa",
+        "irradiazionetoracica",
+        "insufficienza_renale_cronica",
+        "familiarita_cardiovascolare",
+        "limitazione_mobilita",
+        "endocardite",
+        "ritmo_all_ingresso",
+        "fibrillazione_atriale",
+        "dialisi",
+        "elettivo_urgenza_emergenza",
+        "pm",
+        "crt",
+        "icd",
+        "pci_pregressa",
+        "REDO",
+        "Anno REDO",
+        "Tipo di REDO",
+        "Terapia",
+        "lasix",
+        "lasix_dosaggio",
+        "nitrati",
+        "antiaggregante",
+        "dapt",
+        "anticoagorali",
+        "aceinib",
+        "betabloc",
+        "sartanici",
+        "caantag",
+        "esami_all_ingresso",
+        "Decorso_post_operatorio",
+        "IABP/ECMO/IMPELLA",
+        "Inotropi",
+        "secondo_intervento",
+        "Tipo_secondo_intervento",
+        "II_Run",
+        "Causa_II_Run_CEC",
+        "LCOS",
+        "Impianto_PM_post_intervento",
+        "Stroke_TIA_post_op",
+        "Necessità_di_trasfusioni",
+        "IRA",
+        "Insufficienza_respiratoria",
+        "FA_di_nuova_insorgenza",
+        "Ritmo_alla_dimissione",
+        "H_Stay_giorni (da intervento a dimissione)",
+        "Morte",
+        "Causa_morte",
+        "data_morte",
+        "esami_alla_dimissione",
+        "terapia_alla_dimissione"
+    ],
+    "coronarografia": [
+        "n_cartella",
+        "nome",
+        "cognome",
+        "data_di_nascita",
+        "data_esame",
+        "coronarografia text",
+        "coro_tc_stenosi50",
+        "coro_iva_stenosi50",
+        "coro_cx_stenosi50",
+        "coro_mo1_stenosi50",
+        "coro_mo2_stenosi50",
+        "coro_mo3_stenosi50",
+        "coro_int_stenosi50",
+        "coro_plcx_stenosi50",
+        "coro_dx_stenosi50",
+        "coro_pl_stenosi50",
+        "coro_ivp_stenosi50"
+    ],
+    "intervento": [
+        "n_cartella",
+        "data_intervento",
+        "intervento text",
+        "primo operatore",
+        "redo",
+        "cec",
+        "cannulazionearteriosa",
+        "statopaz",
+        "cardioplegia",
+        "approcciochirurgico",
+        "entratainsala",
+        "iniziointervento",
+        "iniziocec",
+        "inizioclamp",
+        "inizioacc",
+        "fineacc",
+        "fineclamp",
+        "finecec",
+        "fineintervento",
+        "uscitasala",
+        "intervento",
+        "protesi",
+        "modello",
+        "numero"
+    ]
 }
+
 
 
 def get_text_to_remove(all_tables):
@@ -50,7 +169,9 @@ def get_cleaned_text(all_text, all_tables):
         cleaned_text = all_text
     return cleaned_text
 
-
+# Estrae il testo e le tabelle da un PDF, rimuove le tabelle dal testo, invia il testo a un LLM per estrarre entità.
+# Verifica le entità estratte contro i dati anagrafici forniti (se presenti).
+# Se il controllo va a buon fine, salva le entità in entities.json e aggiorna l'excel con i dati del paziente.
 def process_document_and_entities(filepath: str, patient_id: str, document_type: str, provided_anagraphic=None) -> dict:
     with pdfplumber.open(filepath) as pdf:
         all_text = "\n".join([page.extract_text() or "" for page in pdf.pages])
@@ -102,6 +223,9 @@ def process_document_and_entities(filepath: str, patient_id: str, document_type:
     return {"entities": entities}
 
 
+# Permette di aggiornare manualmente il file entities.json di un paziente o di visualizzarne un'anteprima.
+# Se updated_entities è None o preview è True, restituisce il contenuto esistente.
+# Altrimenti sovrascrive entities.json con gli updated_entities forniti.
 def update_entities_for_document(patient_id: str, document_type: str, filename: str, updated_entities=None, preview=False):
     path = os.path.join(UPLOAD_FOLDER, patient_id, document_type, "entities.json")
     if preview or not updated_entities:
