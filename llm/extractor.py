@@ -12,17 +12,12 @@ class LLMExtractor:
 
     def get_response_from_document(self, document_text, document_type, model):
         prompt = self.prompt_manager.get_prompt_for(document_type) + "\n\n" + document_text
-        schema = self.prompt_manager.get_schema_for(document_type)
-
         for sleep_time in [1, 2, 4]:
             try:
                 response = self.async_client.chat.completions.create(
                     model=model,
                     messages=[{"role": "user", "content": prompt}],
-                    response_format={
-                        "type": "json_schema",
-                        "schema": schema
-                    },
+                    response_format={"type": "json_schema"},
                     temperature=0.1,
                     top_p=1,
                     max_tokens=8192
