@@ -1,1 +1,1 @@
-from .extractor import get_response_from_document
+from .extractor import LLMExtractor

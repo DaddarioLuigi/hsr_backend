@@ -53,6 +53,7 @@ class DocumentController:
 
         try:
             entities = json.loads(response_json_str)
+            print(entities)
         except json.JSONDecodeError:
             entities = []
 
