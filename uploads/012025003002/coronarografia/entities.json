@@ -1,0 +1,12 @@
+{
+  "n_cartella": 12025003002,
+  "nome": "MASSIMO",
+  "cognome": "RICCA",
+  "data_di_nascita": "17/02/1966",
+  "data_esame": "21/01/2025",
+  "coronarografia text": "CircoloCoronarico: Dominanzadestra\nCoronariaSinistra:\n-TroncoComune:breve,esentedalesioni.\n-Arteriadiscendenteanteriore(IVA):esentedalesioniaterosclerotichestenosanti.\n-Arteriacirconflessa(CX):esentedalesioniaterosclerotichestenosanti.\nCoronariaDestra:\nCoronariadestra(CDX):esentedalesioniaterosclerotichestenosanti.\nAltreOpacizzazioni:\nAortografia:aneurisma dell'aorta ascendente; insufficienza valvolare aortica di grado severo.\nConclusioni:\nAlberocoronaricoesentedalesionistenosanti.Aneurisma dell'aortaascendente;insufficienzavalvolareaorticadigrado\nsevero.",
+  "coro_tc_stenosi50": false,
+  "coro_iva_stenosi50": false,
+  "coro_cx_stenosi50": false,
+  "coro_dx_stenosi50": false
+}

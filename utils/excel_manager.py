@@ -132,20 +132,20 @@ class ExcelManager:
             os.makedirs("export", exist_ok=True)
             with pd.ExcelWriter(self.EXPORT_PATH, engine='openpyxl') as writer:
                 for sheet, columns in self.SHEET_ENTITIES.items():
-                    pd.DataFrame(columns=columns).to_excel(writer, sheet_name=sheet, index=False)
+                    pd.DataFrame(columns=columns, dtype=object).to_excel(writer, sheet_name=sheet, index=False)
 
         excel_file = pd.ExcelFile(self.EXPORT_PATH)
         writer = pd.ExcelWriter(self.EXPORT_PATH, engine='openpyxl', mode='a', if_sheet_exists='overlay')
 
         for sheet in excel_file.sheet_names:
-            df = pd.read_excel(self.EXPORT_PATH, sheet_name=sheet)
+            df = pd.read_excel(self.EXPORT_PATH, sheet_name=sheet, dtype=object)
             columns = self.SHEET_ENTITIES.get(sheet, [])
             row_data = {key: estratti.get(key, "") for key in columns}
-            if str(patient_id) in df.get("n_cartella", []).astype(str).values:
+
+            if str(patient_id) in df.get("n_cartella", pd.Series([], dtype=str)).astype(str).values:
                 for key, value in row_data.items():
                     if key in df.columns:
-                        if pd.isna(value):
-                            value = ""
+                        df[key] = df[key].astype(object)
                         df.loc[df["n_cartella"].astype(str) == str(patient_id), key] = value
             else:
                 df = pd.concat([df, pd.DataFrame([row_data])], ignore_index=True)

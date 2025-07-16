@@ -41,23 +41,24 @@ class DocumentController:
 
     def process_document_and_entities(self, filepath, patient_id, document_type, provided_anagraphic=None):
         with pdfplumber.open(filepath) as pdf:
-            all_text = "\n".join([page.extract_text() or "" for page in pdf.pages])
-            all_tables = []
-            for page in pdf.pages:
-                tables = page.extract_tables()
-                if tables:
-                    all_tables.extend(tables)
-
-        document_text = self.get_cleaned_text(all_text, all_tables)
-        response_json_str = self.llm.get_response_from_document(document_text, document_type, model=self.model_name)
+            document_text = "\n".join([page.extract_text() or "" for page in pdf.pages])
+            print(document_text)
+            response_json_str = self.llm.get_response_from_document(document_text, document_type, model=self.model_name)
 
         try:
             entities = json.loads(response_json_str)
-            print(entities)
-        except json.JSONDecodeError:
-            entities = []
+            #print(entities)
 
-        estratti = {e["entità"]: e["valore"] for e in entities if isinstance(e, dict)}
+            if isinstance(entities, dict):
+                estratti = entities
+            elif isinstance(entities, list):
+                estratti = {e["entità"]: e["valore"] for e in entities if isinstance(e, dict)}
+            else:
+                estratti = {}
+
+        except json.JSONDecodeError:
+            estratti = {}
+
         numero_cartella = estratti.get("n_cartella")
         nome = estratti.get("nome")
         cognome = estratti.get("cognome")
@@ -74,7 +75,7 @@ class DocumentController:
                     self.file_manager.remove_patient_folder_if_exists(patient_id)
                     return {"error": f"Mismatch tra {key} fornito e nel documento."}, 400
         else:
-            if not numero_cartella:
+            if document_type in ["lettera_dimissione", "eco_preoperatorio"] and not numero_cartella:
                 os.remove(filepath)
                 self.file_manager.remove_patient_folder_if_exists(patient_id)
                 return {"error": "Numero cartella mancante e non fornito."}, 400
@@ -82,13 +83,15 @@ class DocumentController:
         patient_folder = os.path.join(self.upload_folder, patient_id)
         document_folder = os.path.join(patient_folder, document_type)
         os.makedirs(document_folder, exist_ok=True)
+
         output_path = os.path.join(document_folder, "entities.json")
         with open(output_path, "w") as f:
-            json.dump(entities, f, indent=2, ensure_ascii=False)
+            json.dump(estratti, f, indent=2, ensure_ascii=False)
 
         self.excel_manager.update_excel(patient_id, document_type, estratti)
 
-        return {"entities": entities}
+        return {"entities": estratti}
+
 
     def update_entities_for_document(self, patient_id, document_type, filename, updated_entities=None, preview=False):
         path = os.path.join(self.upload_folder, patient_id, document_type, "entities.json")

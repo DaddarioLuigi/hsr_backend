@@ -3,7 +3,7 @@
 class PromptManager:
     SCHEMAS = {
         "lettera_dimissione": {
-            "$schema": "http://json-schema.org/draft-07/schema#",
+            "name": "lettera_dimissione",
             "title": "Scheda Cardiochirurgia",
             "type": "object",
             "properties": {
@@ -74,7 +74,7 @@ class PromptManager:
                 "IRA": { "type": "boolean" },
                 "Insufficienza_respiratoria": { "type": "boolean" },
                 "FA_di_nuova_insorgenza": { "type": "boolean" },
-                "Ritmo_alla_dimissione": { "type": "number", "enum": [0, 1, 2] },
+                "Ritmo_alla_dimissione": { "type": "string", "enum": [0, 1, 2] },
                 "H_Stay_giorni_da_intervento_a_dimissione": { "type": "number" },
                 "Morte": { "type": "boolean" },
                 "Causa_morte": { "type": "string" },
@@ -83,8 +83,130 @@ class PromptManager:
                 "terapia_alla_dimissione": { "type": "string" }
             },
             "required": ["n_cartella", "nome", "cognome"]
-        }
+        },
+        "coronarografia": {
+            "name": "coronarografia",
+            "title": "Scheda Coronarografia",
+            "type": "object",
+            "properties": {
+                "n_cartella": { "type": "number" },
+                "nome": { "type": "string" },
+                "cognome": { "type": "string" },
+                "data_di_nascita": { "type": "string", "format": "date" },
+                "data_esame": { "type": "string", "format": "date" },
+                "coronarografia text": { "type": "string" },
+                "coro_tc_stenosi50": { "type": "boolean" },
+                "coro_iva_stenosi50": { "type": "boolean" },
+                "coro_cx_stenosi50": { "type": "boolean" },
+                "coro_mo1_stenosi50": { "type": "boolean" },
+                "coro_mo2_stenosi50": { "type": "boolean" },
+                "coro_mo3_stenosi50": { "type": "boolean" },
+                "coro_int_stenosi50": { "type": "boolean" },
+                "coro_plcx_stenosi50": { "type": "boolean" },
+                "coro_dx_stenosi50": { "type": "boolean" },
+                "coro_pl_stenosi50": { "type": "boolean" },
+                "coro_ivp_stenosi50": { "type": "boolean" }
+            },
+            "required": ["n_cartella", "nome", "cognome"]
+        },
+        "eco_preoperatorio": {
+            "name": "eco_preoperatorio",
+            "title": "Scheda Ecocardiogramma Preoperatorio",
+            "type": "object",
+            "properties": {
+                "n_cartella": { "type": "number" },
+                "nome": { "type": "string" },
+                "cognome": { "type": "string" },
+                "data_di_nascita": { "type": "string", "format": "date" },
+                "altezza": { "type": "number" },
+                "peso": { "type": "number" },
+                "bmi": { "type": "number" },
+                "bsa": { "type": "number" },
+                "data_esame": { "type": "string", "format": "date" },
+                "eco text": { "type": "string" }
+            },
+            "required": ["n_cartella", "nome", "cognome"]
+        },
+        "eco_postoperatorio": {
+            "name": "eco_postoperatorio",
+            "title": "Scheda Ecocardiogramma Postoperatorio",
+            "type": "object",
+            "properties": {
+                "data_esame": { "type": "string", "format": "date" },
+                "eco_text": { "type": "string" }
+            },
+            "required": ["data_esame"]
+        },
+        "tc_cuore": {
+            "name": "tc_cuore",
+            "title": "Scheda TC Cuore",
+            "type": "object",
+            "properties": {
+                "n_cartella": { "type": "number" },
+                "nome": { "type": "string" },
+                "cognome": { "type": "string" },
+                "data_di_nascita": { "type": "string", "format": "date" },
+                "data_esame": { "type": "string", "format": "date" },
+                "tac text": { "type": "string" },
+                "tc_tc_stenosi50": { "type": "boolean" },
+                "tc_iva_stenosi50": { "type": "boolean" },
+                "tc_cx_stenosi50": { "type": "boolean" },
+                "tc_mo1_stenosi50": { "type": "boolean" },
+                "tc_mo2_stenosi50": { "type": "boolean" },
+                "tc_mo3_stenosi50": { "type": "boolean" },
+                "tc_int_stenosi50": { "type": "boolean" },
+                "tc_plcx_stenosi50": { "type": "boolean" },
+                "tc_dx_stenosi50": { "type": "boolean" },
+                "tc_pl_stenosi50": { "type": "boolean" },
+                "tc_ivp_stenosi50": { "type": "boolean" },
+                "dimaorta_anulus": { "type": "number" },
+                "dimaorta_perimetro": { "type": "number" },
+                "dimaorta_radice": { "type": "number" },
+                "dimaorta_giunzione": { "type": "number" },
+                "dimaorta_asc": { "type": "number" },
+                "dimaorta_arco": { "type": "number" },
+                "dimaorta_disc": { "type": "number" },
+                "area_valv_aortica": { "type": "number" },
+                "asse_lungo": { "type": "number" },
+                "asse_corto": { "type": "number" },
+                "h_media_senocor": { "type": "number" }
+            },
+            "required": ["n_cartella", "nome", "cognome"]
+        },
+        "intervento": {
+    "name": "intervento",
+    "title": "Scheda Intervento Cardiochirurgico",
+    "type": "object",
+    "properties": {
+        "data_intervento": { "type": "string", "format": "date" },
+        "intervento text": { "type": "string" },
+        "primo operatore": { "type": "string" },
+        "redo": { "type": "boolean" },
+        "cec": { "type": "boolean" },
+        "cannulazionearteriosa": { "type": "string" },
+        "statopaz": { "type": "string" },
+        "cardioplegia": { "type": "string" },
+        "approcciochirurgico": { "type": "string" },
+        "entratainsala": { "type": "string", "format": "time" },
+        "iniziointervento": { "type": "string", "format": "time" },
+        "iniziocec": { "type": "string", "format": "time" },
+        "inizioclamp": { "type": "string", "format": "time" },
+        "inizioacc": { "type": "string", "format": "time" },
+        "fineacc": { "type": "string", "format": "time" },
+        "fineclamp": { "type": "string", "format": "time" },
+        "finecec": { "type": "string", "format": "time" },
+        "fineintervento": { "type": "string", "format": "time" },
+        "uscitasala": { "type": "string", "format": "time" },
+        "intervento": { "type": "string" },
+        "protesi": { "type": "string" },
+        "modello": { "type": "string" },
+        "numero": { "type": "number" }
+    },
+    "required": ["data_intervento", "intervento text", "primo operatore"]
+}
+
     }
+
 
     PROMPTS = {
         "lettera_dimissione": '''
@@ -329,6 +451,107 @@ Sei un medico cardiochirurgo. Il tuo compito è estrarre esclusivamente le segue
 - Nessuna spiegazione, nessun commento, solo la lista JSON.
 
 ---
+''',
+"eco_postoperatorio": '''
+Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre esclusivamente le seguenti entità dall’ecocardiogramma postoperatorio riportato qui sotto.
+
+### Entità da estrarre (solo queste):
+
+| Entità      | Tipo    | Descrizione                                     |
+|-------------|---------|-------------------------------------------------|
+| data_esame  | Date    | Data di esecuzione dell’ecocardiogramma        |
+| eco_text    | Text    | Descrizione completa del referto ecocardiografico |
+
+---
+
+### Istruzioni IMPORTANTI:
+
+- Ragiona considerando frase per frase.
+- Non estrarre nessuna entità diversa da quelle elencate.
+- Se un'entità non è presente, non inventarla.
+- Il formato di output deve essere una lista JSON con:
+    - "entità": nome dell'entità
+    - "valore": valore estratto
+Nessun commento o testo aggiuntivo.
+''',
+"eco_preoperatorio": '''
+Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre esclusivamente le seguenti entità dall’ecocardiogramma preoperatorio riportato qui sotto.
+
+### Entità da estrarre (solo queste):
+
+| Entità           | Tipo     | Descrizione                                    |
+|------------------|----------|------------------------------------------------|
+| n_cartella       | Number   | Numero identificativo univoco della cartella   |
+| nome             | Text     | Nome del paziente                              |
+| cognome          | Text     | Cognome del paziente                           |
+| data_di_nascita  | Date     | Data di nascita del paziente                   |
+| altezza          | Number   | Altezza del paziente in centimetri             |
+| peso             | Number   | Peso del paziente in kg                        |
+| bmi              | Number   | Body Mass Index                                |
+| bsa              | Number   | Body Surface Area                              |
+| data_esame       | Date     | Data di esecuzione dell’ecocardiogramma       |
+| eco text         | Text     | Descrizione completa del referto ecocardiografico |
+
+---
+
+### Istruzioni IMPORTANTI:
+
+- Ragiona considerando frase per frase.
+- Non estrarre nessuna entità diversa da quelle elencate.
+- Se un'entità non è presente, non inventarla.
+- Il formato di output deve essere una lista JSON con:
+    - "entità": nome dell'entità
+    - "valore": valore estratto
+Nessun commento o testo aggiuntivo.
+'''
+,
+"tc_cuore": '''
+Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre esclusivamente le seguenti entità dal referto di TC Cuore riportato qui sotto.
+
+### Entità da estrarre (solo queste):
+
+| Entità                | Tipo    | Descrizione                                      |
+|----------------------|---------|--------------------------------------------------|
+| n_cartella           | Number  | Numero identificativo univoco della cartella     |
+| nome                 | Text    | Nome del paziente                                |
+| cognome              | Text    | Cognome del paziente                             |
+| data_di_nascita      | Date    | Data di nascita del paziente                     |
+| data_esame           | Date    | Data di esecuzione della TC Cuore                |
+| tac text             | Text    | Descrizione completa del referto TC              |
+| tc_tc_stenosi50      | Boolean | Stenosi > 50% su tronco comune                   |
+| tc_iva_stenosi50     | Boolean | Stenosi > 50% su IVA                             |
+| tc_cx_stenosi50      | Boolean | Stenosi > 50% su CX                              |
+| tc_mo1_stenosi50     | Boolean | Stenosi > 50% su MO1                             |
+| tc_mo2_stenosi50     | Boolean | Stenosi > 50% su MO2                             |
+| tc_mo3_stenosi50     | Boolean | Stenosi > 50% su MO3                             |
+| tc_int_stenosi50     | Boolean | Stenosi > 50% su interventricolare posteriore    |
+| tc_plcx_stenosi50    | Boolean | Stenosi > 50% su PL-CX                           |
+| tc_dx_stenosi50      | Boolean | Stenosi > 50% su coronaria destra                |
+| tc_pl_stenosi50      | Boolean | Stenosi > 50% su PL                              |
+| tc_ivp_stenosi50     | Boolean | Stenosi > 50% su IVP                             |
+| dimaorta_anulus      | Number  | Diametro anulus aortico                           |
+| dimaorta_perimetro   | Number  | Perimetro aortico                                 |
+| dimaorta_radice      | Number  | Diametro radice aortica                           |
+| dimaorta_giunzione   | Number  | Diametro giunzione sinotubulare                   |
+| dimaorta_asc         | Number  | Diametro aorta ascendente                         |
+| dimaorta_arco        | Number  | Diametro arco aortico                             |
+| dimaorta_disc        | Number  | Diametro aorta discendente                        |
+| area_valv_aortica    | Number  | Area valvolare aortica                            |
+| asse_lungo           | Number  | Asse lungo seno coronarico                        |
+| asse_corto           | Number  | Asse corto seno coronarico                        |
+| h_media_senocor      | Number  | Altezza media seno coronarico                     |
+
+---
+
+### Istruzioni IMPORTANTI:
+
+- Ragiona considerando frase per frase.
+- Non estrarre nessuna entità diversa da quelle elencate.
+- Se un'entità non è presente, non inventarla.
+- Il formato di output deve essere una lista JSON con:
+    - "entità": nome dell'entità
+    - "valore": valore estratto
+Nessun commento o testo aggiuntivo.
 '''
     }
 
