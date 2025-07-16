@@ -1,8 +1,8 @@
 # llm/prompts.py
 
-#mettere prompt corretto 
-PROMPTS = {
-    "lettera_dimissione": '''
+class PromptManager:
+    PROMPTS = {
+        "lettera_dimissione": '''
 Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre **esclusivamente** le seguenti entità dalla **lettera di dimissione** riportata qui sotto.
 
 ###**Entità da estrarre (solo queste):**
@@ -245,7 +245,8 @@ Sei un medico cardiochirurgo. Il tuo compito è estrarre esclusivamente le segue
 
 ---
 '''
-}
-def get_prompt_for(document_type: str) -> str:
-    return PROMPTS[document_type] 
+    }
+
+    def get_prompt_for(self, document_type: str) -> str:
+        return self.PROMPTS[document_type] 
 
