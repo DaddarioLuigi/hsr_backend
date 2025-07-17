@@ -10,8 +10,8 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 document_controller = DocumentController()
 
-@app.route("/upload-document", methods=["POST"])
-def upload_document():
+@app.route("/_upload-document", methods=["POST"])
+def _upload_document():
     if "file" not in request.files or "patient_id" not in request.form or "document_type" not in request.form:
         return jsonify({"error": "file, patient_id e document_type sono obbligatori"}), 400
 
