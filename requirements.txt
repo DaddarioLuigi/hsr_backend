@@ -9,3 +9,4 @@ requests>=2.32.4
 # Se usi LLMExtractor e together API
 # together>=1.5.17
 # Se usi funzioni di AI, aggiungi qui eventuali altre dipendenze
+flask-cors
