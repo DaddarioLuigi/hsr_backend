@@ -1,0 +1,68 @@
+[
+  {
+    "confidence": 1,
+    "id": "1",
+    "type": "n_cartella",
+    "value": 12025003002
+  },
+  {
+    "confidence": 1,
+    "id": "2",
+    "type": "nome",
+    "value": "MASSIMO"
+  },
+  {
+    "confidence": 1,
+    "id": "3",
+    "type": "cognome",
+    "value": "RICCA"
+  },
+  {
+    "confidence": 1,
+    "id": "4",
+    "type": "data_di_nascita",
+    "value": "17/02/1966"
+  },
+  {
+    "confidence": 1,
+    "id": "5",
+    "type": "data_esame",
+    "value": "21/01/2025"
+  },
+  {
+    "confidence": 1,
+    "id": "6",
+    "type": "coronarografia text",
+    "value": "CircoloCoronarico: Dominanzadestra CoronariaSinistra: -TroncoComune:breve,esentedalesioni. -Arteriadiscendenteanteriore(IVA):esentedalesioniaterosclerotichestenosanti. -Arteriacirconflessa(CX):esentedalesioniaterosclerotichestenosanti. CoronariaDestra: Coronariadestra(CDX):esentedalesioniaterosclerotichestenosanti. AltreOpacizzazioni: Aortografia:aneurisma dell'aorta ascendente; insufficienza valvolare aortica di grado severo. Conclusioni: Alberocoronaricoesentedalesionistenosanti.Aneurisma dell'aortaascendente;insufficienzavalvolareaorticadigrado severo."
+  },
+  {
+    "confidence": 1,
+    "id": "7",
+    "type": "coro_tc_stenosi50",
+    "value": "false"
+  },
+  {
+    "confidence": 1,
+    "id": "8",
+    "type": "coro_iva_stenosi50",
+    "value": false
+  },
+  {
+    "confidence": 1,
+    "id": "9",
+    "type": "coro_cx_stenosi50",
+    "value": false
+  },
+  {
+    "confidence": 1,
+    "id": "10",
+    "type": "coro_dx_stenosi50",
+    "value": false
+  },
+  {
+    "id": "1752768000456",
+    "type": "test",
+    "value": "true",
+    "confidence": 1
+  }
+]

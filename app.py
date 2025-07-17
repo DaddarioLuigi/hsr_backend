@@ -6,14 +6,25 @@ from controller.controller import DocumentController
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:3000"])
+CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}}, supports_credentials=True)
+
+@app.after_request
+def after_request(response):
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:3000")
+    response.headers.add("Access-Control-Allow-Credentials", "true")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
+    return response
+
+
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 document_controller = DocumentController()
 
-@app.route("/_upload-document", methods=["POST"])
-def _upload_document():
+'''
+@app.route("/upload-document", methods=["POST"])
+def upload_document():
     if "file" not in request.files or "patient_id" not in request.form or "document_type" not in request.form:
         return jsonify({"error": "file, patient_id e document_type sono obbligatori"}), 400
 
@@ -39,6 +50,8 @@ def _upload_document():
 
     response = document_controller.process_document_and_entities(filepath, patient_id, document_type)
     return jsonify(response)
+
+'''
 
 @app.route("/preview-entities/<patient_id>/<document_type>/<filename>", methods=["GET"])
 def preview_entities(patient_id, document_type, filename):
@@ -137,7 +150,9 @@ def upload_document():
         json.dump(meta, f)
 
     # Avvia processing (ma la risposta è subito processing)
-    # document_controller.process_document_and_entities(filepath, patient_id, document_type)
+    print(f"[DEBUG] Starting processing for {filepath}")
+    document_controller.process_document_and_entities(filepath, patient_id, document_type)
+    print(f"[DEBUG] Finished processing for {filepath}")
 
     # document_id: doc_{patient_id}_{document_type}_{filename senza estensione}
     doc_id = f"doc_{patient_id}_{document_type}_{os.path.splitext(filename)[0]}"
@@ -150,4 +165,4 @@ def upload_document():
     })
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(port=5050, debug=False)
