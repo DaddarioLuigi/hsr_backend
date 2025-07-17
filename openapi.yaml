@@ -1,0 +1,240 @@
+openapi: 3.0.0
+info:
+  title: HSR Backend API
+  version: 1.0.0
+  description: >
+    API per la gestione di pazienti, documenti clinici, entità estratte ed esportazione dati in Excel.
+
+servers:
+  - url: http://localhost:5000
+
+paths:
+  /api/patients:
+    get:
+      summary: Elenco pazienti
+      description: Restituisce la lista di tutti i pazienti presenti nel sistema.
+      responses:
+        '200':
+          description: Lista pazienti
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PatientSummary'
+
+  /api/patient/{patient_id}:
+    get:
+      summary: Dettaglio paziente e lista documenti
+      description: Restituisce i dettagli di un paziente e la lista dei suoi documenti.
+      parameters:
+        - in: path
+          name: patient_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Dettaglio paziente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientDetail'
+        '404':
+          description: Paziente non trovato
+
+  /api/upload-document:
+    post:
+      summary: Caricamento documento PDF
+      description: Carica un file PDF per un paziente e avvia l'elaborazione.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                patient_id:
+                  type: string
+              required:
+                - file
+                - patient_id
+      responses:
+        '200':
+          description: Documento caricato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          description: Parametri mancanti
+
+  /api/document/{document_id}:
+    get:
+      summary: Dati per l'editor di entità
+      description: Restituisce i dati di un documento, incluse le entità estratte e il percorso del PDF.
+      parameters:
+        - in: path
+          name: document_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Dati documento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDetail'
+        '404':
+          description: Documento non trovato
+    put:
+      summary: Aggiorna le entità di un documento
+      description: Aggiorna il file entities.json per un documento specifico.
+      parameters:
+        - in: path
+          name: document_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                entities:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Entity'
+      responses:
+        '200':
+          description: Entità aggiornate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateEntitiesResponse'
+        '400':
+          description: Formato entità non valido
+        '500':
+          description: Errore durante il salvataggio
+
+  /api/export-excel:
+    get:
+      summary: Esporta tutti i dati in Excel
+      description: Restituisce il file Excel con tutti i dati clinici.
+      responses:
+        '200':
+          description: File Excel generato
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
+components:
+  schemas:
+    PatientSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        document_count:
+          type: integer
+        last_document_date:
+          type: string
+          format: date
+          nullable: true
+
+    PatientDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentSummary'
+
+    DocumentSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        filename:
+          type: string
+        document_type:
+          type: string
+        upload_date:
+          type: string
+          format: date
+          nullable: true
+        entities_count:
+          type: integer
+        status:
+          type: string
+          enum: [processed, processing]
+
+    UploadResponse:
+      type: object
+      properties:
+        document_id:
+          type: string
+        patient_id:
+          type: string
+        document_type:
+          type: string
+        filename:
+          type: string
+        status:
+          type: string
+          enum: [processing]
+
+    DocumentDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        patient_id:
+          type: string
+        document_type:
+          type: string
+        filename:
+          type: string
+        pdf_path:
+          type: string
+        entities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Entity'
+
+    Entity:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        value:
+          type: string
+        confidence:
+          type: number
+          format: float
+
+    UpdateEntitiesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        document_id:
+          type: string
+        message:
+          type: string 

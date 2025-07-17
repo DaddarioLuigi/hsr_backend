@@ -106,5 +106,14 @@ class DocumentController:
 
         return {"status": "updated"}
 
+    def update_document_entities(self, document_id, entities):
+        return self.file_manager.update_document_entities(document_id, entities)
+
     def list_existing_patients(self):
-        return self.file_manager.list_existing_patients()
+        return self.file_manager.get_patients_summary()
+
+    def get_patient_detail(self, patient_id):
+        return self.file_manager.get_patient_detail(patient_id)
+
+    def get_document_detail(self, document_id):
+        return self.file_manager.get_document_detail(document_id)
