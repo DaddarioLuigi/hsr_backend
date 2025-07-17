@@ -3,7 +3,7 @@
     "confidence": 1,
     "id": "1",
     "type": "n_cartella",
-    "value": 12025003002
+    "value": 2025003002
   },
   {
     "confidence": 1,
@@ -33,13 +33,13 @@
     "confidence": 1,
     "id": "6",
     "type": "coronarografia text",
-    "value": "CircoloCoronarico: Dominanzadestra CoronariaSinistra: -TroncoComune:breve,esentedalesioni. -Arteriadiscendenteanteriore(IVA):esentedalesioniaterosclerotichestenosanti. -Arteriacirconflessa(CX):esentedalesioniaterosclerotichestenosanti. CoronariaDestra: Coronariadestra(CDX):esentedalesioniaterosclerotichestenosanti. AltreOpacizzazioni: Aortografia:aneurisma dell'aorta ascendente; insufficienza valvolare aortica di grado severo. Conclusioni: Alberocoronaricoesentedalesionistenosanti.Aneurisma dell'aortaascendente;insufficienzavalvolareaorticadigrado severo."
+    "value": "CircoloCoronarico: Dominanzadestra\nCoronariaSinistra:\n-TroncoComune:breve,esentedalesioni.\n-Arteriadiscendenteanteriore(IVA):esentedalesioniaterosclerotichestenosanti.\n-Arteriacirconflessa(CX):esentedalesioniaterosclerotichestenosanti.\nCoronariaDestra:\nCoronariadestra(CDX):esentedalesioniaterosclerotichestenosanti.\nAltreOpacizzazioni:\nAortografia:aneurisma dell'aorta ascendente; insufficienza valvolare aortica di grado severo.\nConclusioni:\nAlberocoronaricoesentedalesionistenosanti.Aneurisma dell'aortaascendente;insufficienzavalvolareaorticadigrado\nsevero."
   },
   {
     "confidence": 1,
     "id": "7",
     "type": "coro_tc_stenosi50",
-    "value": "false"
+    "value": false
   },
   {
     "confidence": 1,
@@ -58,11 +58,5 @@
     "id": "10",
     "type": "coro_dx_stenosi50",
     "value": false
-  },
-  {
-    "id": "1752768000456",
-    "type": "test",
-    "value": "true",
-    "confidence": 1
   }
 ]
