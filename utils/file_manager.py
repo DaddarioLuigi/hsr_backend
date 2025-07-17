@@ -31,7 +31,7 @@ class FileManager:
         json_path = os.path.join(self.UPLOAD_FOLDER, patient_id, document_type, "entities.json")
         if os.path.exists(json_path):
             with open(json_path) as f:
-                return json.load(f)
+                return json.load(f) 
         return []
 
     def list_existing_patients(self):
