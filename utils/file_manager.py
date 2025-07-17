@@ -10,13 +10,22 @@ class FileManager:
         if os.path.exists(folder_path):
             shutil.rmtree(folder_path)
 
-    def save_entities_json(self, patient_id: str, document_type: str, entities: list):
+    def _entities_list_to_dict(self, entities):
+        # Converte una lista di entità [{"type":..., "value":...}] in un oggetto chiave/valore
+        if isinstance(entities, dict):
+            return entities
+        if isinstance(entities, list):
+            return {e.get("type") or e.get("entità"): e.get("value") or e.get("valore") for e in entities if (e.get("type") or e.get("entità")) is not None}
+        return {}
+
+    def save_entities_json(self, patient_id: str, document_type: str, entities):
         patient_folder = os.path.join(self.UPLOAD_FOLDER, patient_id)
         document_folder = os.path.join(patient_folder, document_type)
         os.makedirs(document_folder, exist_ok=True)
         output_path = os.path.join(document_folder, "entities.json")
+        entities_obj = self._entities_list_to_dict(entities)
         with open(output_path, "w") as f:
-            json.dump(entities, f, indent=2, ensure_ascii=False)
+            json.dump(entities_obj, f, indent=2, ensure_ascii=False)
 
     def read_existing_entities(self, patient_id: str, document_type: str):
         json_path = os.path.join(self.UPLOAD_FOLDER, patient_id, document_type, "entities.json")
@@ -213,9 +222,9 @@ class FileManager:
             _, patient_id, document_type, _ = parts
             folder = os.path.join(self.UPLOAD_FOLDER, patient_id, document_type)
             entities_path = os.path.join(folder, "entities.json")
-            # Salva la lista così com'è
+            entities_obj = self._entities_list_to_dict(entities)
             with open(entities_path, "w") as f:
-                json.dump(entities, f, indent=2, ensure_ascii=False)
+                json.dump(entities_obj, f, indent=2, ensure_ascii=False)
             return True
         except Exception:
             return False
