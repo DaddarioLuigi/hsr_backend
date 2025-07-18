@@ -1,12 +1,11 @@
 Flask>=3.1.1
 Werkzeug>=3.1.3
+flask-cors
 pdfplumber>=0.11.7
 numpy>=2.3.1
 pandas>=2.2.2
 openpyxl>=3.1.2
 python-dotenv>=1.1.1
 requests>=2.32.4
-# Se usi LLMExtractor e together API
-# together>=1.5.17
-# Se usi funzioni di AI, aggiungi qui eventuali altre dipendenze
-flask-cors
+# Se usi LLMExtractor e la Together API:
+together>=1.5.17

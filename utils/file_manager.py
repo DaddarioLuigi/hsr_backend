@@ -1,6 +1,7 @@
 import os
 import json
 import shutil
+import re
 
 class FileManager:
     UPLOAD_FOLDER = "uploads"
@@ -155,19 +156,29 @@ class FileManager:
 
     def get_document_detail(self, document_id):
         # document_id: doc_{patient_id}_{document_type}_{filename senza estensione}
+        def normalize(s):
+            return re.sub(r'[^a-z0-9]', '', s.lower())
         try:
-            parts = document_id.split('_', 3)
-            if len(parts) < 4:
+            parts = document_id.split('_')
+            if len(parts) < 4: 
                 return None
-            _, patient_id, document_type, filename_noext = parts
+            patient_id = parts[1]
+            # document_type può contenere underscore, quindi prendi tutto tranne il primo, il secondo e l'ultimo pezzo
+            document_type = '_'.join(parts[2:-1])
+            filename_noext = parts[-1]
             folder = os.path.join(self.UPLOAD_FOLDER, patient_id, document_type)
-            # Cerca il PDF
+            # Cerca il PDF in modo case-insensitive e ignorando underscore/spazi
             pdf_file = None
+            normalized_target = normalize(filename_noext)
+            print("DEBUG: folder=", folder)
+            print("DEBUG: filename_noext=", filename_noext)
+            print("DEBUG: files in folder:", os.listdir(folder))
             for f in os.listdir(folder):
-                if f.startswith(filename_noext) and f.endswith('.pdf'):
+                if f.lower().endswith('.pdf') and normalize(os.path.splitext(f)[0]) == normalized_target:
                     pdf_file = f
                     break
             if not pdf_file:
+                print("DEBUG: Nessun file PDF trovato che corrisponde a", filename_noext)
                 return None
             pdf_path = f"/uploads/{patient_id}/{document_type}/{pdf_file}"
             # Leggi entities.json

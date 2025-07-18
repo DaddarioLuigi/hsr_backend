@@ -8,6 +8,7 @@ import io
 import json
 import pdfplumber
 from datetime import datetime
+from flask import send_from_directory
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}}, supports_credentials=True)
@@ -225,6 +226,10 @@ def upload_document():
     except Exception as e:
         app.logger.exception("Errore in upload_document")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/uploads/<path:filename>')
+def uploaded_file(filename):
+    return send_from_directory('uploads', filename)
     
 if __name__ == "__main__":
     print("Routes:")
