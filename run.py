@@ -20,3 +20,4 @@ def get_patients():
 
 if __name__ == "__main__":
     app.run(port=5050, debug=False)
+ 
