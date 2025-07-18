@@ -15,11 +15,11 @@ CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}}, supports_cred
 
 @app.after_request
 def apply_cors(response):
-    response.headers["Access-Control-Allow-Origin"]     = "http://localhost:3000"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    response.headers["Access-Control-Allow-Headers"]    = "Content-Type,Authorization"
-    response.headers["Access-Control-Allow-Methods"]    = "GET,POST,PUT,DELETE,OPTIONS"
+    response.headers["Access-Control-Allow-Headers"]  = "Content-Type,Authorization,Range"
+    response.headers["Access-Control-Expose-Headers"] = "Content-Range,Accept-Ranges,Content-Length,Content-Type"
+    response.headers["Access-Control-Allow-Methods"]  = "GET,POST,PUT,DELETE,OPTIONS"
     return response
+
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)

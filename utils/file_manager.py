@@ -156,74 +156,101 @@ class FileManager:
 
     def get_document_detail(self, document_id):
         # document_id: doc_{patient_id}_{document_type}_{filename senza estensione}
+        import os, re, json
+        # Funzione di normalizzazione per confronto case-insensitive e senza caratteri speciali
         def normalize(s):
             return re.sub(r'[^a-z0-9]', '', s.lower())
+
+        # Parsing robusto dell'ID
+        if not document_id.startswith("doc_"):
+            return None
+        rest = document_id[len("doc_"):]
         try:
-            parts = document_id.split('_')
-            if len(parts) < 4: 
-                return None
-            patient_id = parts[1]
-            # document_type può contenere underscore, quindi prendi tutto tranne il primo, il secondo e l'ultimo pezzo
-            document_type = '_'.join(parts[2:-1])
-            filename_noext = parts[-1]
-            folder = os.path.join(self.UPLOAD_FOLDER, patient_id, document_type)
-            # Cerca il PDF in modo case-insensitive e ignorando underscore/spazi
-            pdf_file = None
-            normalized_target = normalize(filename_noext)
-            print("DEBUG: folder=", folder)
-            print("DEBUG: filename_noext=", filename_noext)
-            print("DEBUG: files in folder:", os.listdir(folder))
+            patient_id, remainder = rest.split('_', 1)
+        except ValueError:
+            return None
+
+        # Lista dei tipi di documenti supportati
+        possible_types = [
+            "lettera_dimissione",
+            "coronarografia",
+            "intervento",
+            "eco_preoperatorio",
+            "eco_postoperatorio",
+            "tc_cuore",
+            "altro"
+        ]
+        # Ricerca del document_type nel resto della stringa
+        document_type = next(
+            (t for t in possible_types if remainder.startswith(t + "_")),
+            None
+        )
+        if not document_type:
+            return None
+
+        # Estrai il nome del file senza estensione
+        filename_noext = remainder[len(document_type) + 1:]
+        # Costruisci il percorso della cartella
+        folder = os.path.join(self.UPLOAD_FOLDER, patient_id, document_type)
+
+        # Cerca il PDF in modo case-insensitive e ignorando underscore/spazi
+        pdf_file = None
+        normalized_target = normalize(filename_noext)
+        try:
             for f in os.listdir(folder):
                 if f.lower().endswith('.pdf') and normalize(os.path.splitext(f)[0]) == normalized_target:
                     pdf_file = f
                     break
-            if not pdf_file:
-                print("DEBUG: Nessun file PDF trovato che corrisponde a", filename_noext)
-                return None
-            pdf_path = f"/uploads/{patient_id}/{document_type}/{pdf_file}"
-            # Leggi entities.json
-            entities_path = os.path.join(folder, "entities.json")
-            entities = []
-            if os.path.exists(entities_path):
-                with open(entities_path) as f:
-                    data = json.load(f)
-                    # Se dict, converti in lista
-                    if isinstance(data, dict):
-                        for idx, (k, v) in enumerate(data.items(), 1):
-                            entities.append({
-                                "id": str(idx),
-                                "type": k,
-                                "value": v,
-                                "confidence": 1.0
-                            })
-                    elif isinstance(data, list):
-                        for idx, ent in enumerate(data, 1):
-                            entities.append({
-                                "id": str(idx),
-                                "type": ent.get("type") or ent.get("entità") or "",
-                                "value": ent.get("value") or ent.get("valore") or "",
-                                "confidence": ent.get("confidence", 1.0)
-                            })
-            # Leggi meta.json per filename
-            meta_path = os.path.join(folder, pdf_file + ".meta.json")
-            filename = pdf_file
-            if os.path.exists(meta_path):
-                try:
-                    with open(meta_path) as f:
-                        meta = json.load(f)
-                        filename = meta.get("filename", pdf_file)
-                except Exception:
-                    pass
-            return {
-                "id": document_id,
-                "patient_id": patient_id,
-                "document_type": document_type,
-                "filename": filename,
-                "pdf_path": pdf_path,
-                "entities": entities
-            }
-        except Exception:
+        except FileNotFoundError:
             return None
+
+        if not pdf_file:
+            return None
+
+        pdf_path = f"/uploads/{patient_id}/{document_type}/{pdf_file}"
+
+        # Leggi entities.json
+        entities = []
+        entities_path = os.path.join(folder, "entities.json")
+        if os.path.exists(entities_path):
+            with open(entities_path) as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    for idx, (k, v) in enumerate(data.items(), 1):
+                        entities.append({
+                            "id": str(idx),
+                            "type": k,
+                            "value": v,
+                            "confidence": 1.0
+                        })
+                elif isinstance(data, list):
+                    for idx, ent in enumerate(data, 1):
+                        entities.append({
+                            "id": str(idx),
+                            "type": ent.get("type") or ent.get("entità") or "",
+                            "value": ent.get("value") or ent.get("valore") or "",
+                            "confidence": ent.get("confidence", 1.0)
+                        })
+
+        # Leggi meta.json per recuperare il nome file originale
+        filename = pdf_file
+        meta_path = os.path.join(folder, pdf_file + ".meta.json")
+        if os.path.exists(meta_path):
+            try:
+                with open(meta_path) as f:
+                    meta = json.load(f)
+                    filename = meta.get("filename", pdf_file)
+            except Exception:
+                pass
+
+        return {
+            "id": document_id,
+            "patient_id": patient_id,
+            "document_type": document_type,
+            "filename": filename,
+            "pdf_path": pdf_path,
+            "entities": entities
+        }
 
     def update_document_entities(self, document_id, entities):
         try:
