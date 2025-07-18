@@ -4,23 +4,42 @@ from werkzeug.utils import secure_filename
 import os
 from controller.controller import DocumentController
 from flask_cors import CORS
+import io 
+import json
+import pdfplumber
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}}, supports_credentials=True)
 
 @app.after_request
-def after_request(response):
-    response.headers.add("Access-Control-Allow-Origin", "http://localhost:3000")
-    response.headers.add("Access-Control-Allow-Credentials", "true")
-    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-    response.headers.add("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
+def apply_cors(response):
+    response.headers["Access-Control-Allow-Origin"]     = "http://localhost:3000"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Headers"]    = "Content-Type,Authorization"
+    response.headers["Access-Control-Allow-Methods"]    = "GET,POST,PUT,DELETE,OPTIONS"
     return response
-
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 document_controller = DocumentController()
+
+def guess_document_type(filename):
+    name = filename.lower()
+    if "dimissione" in name:
+        return "lettera_dimissione"
+    if "coronaro" in name:
+        return "coronarografia"
+    if "intervento" in name or "verbale" in name:
+        return "intervento"
+    if "eco" in name and "pre" in name:
+        return "eco_preoperatorio"
+    if "eco" in name and "post" in name:
+        return "eco_postoperatorio"
+    if "tc" in name or "tac" in name:
+        return "tc_cuore"
+    return "altro"
 
 '''
 @app.route("/upload-document", methods=["POST"])
@@ -106,63 +125,109 @@ def update_document_entities(document_id):
         "message": "Entità aggiornate con successo."
     })
 
+
 @app.route("/api/upload-document", methods=["POST"])
 def upload_document():
-    if "file" not in request.files or "patient_id" not in request.form:
-        return jsonify({"error": "file e patient_id sono obbligatori"}), 400
+    try:
+        files = request.files.getlist("file")
+        if not files:
+            return jsonify({"error": "Almeno un file è obbligatorio"}), 400
 
-    file = request.files["file"]
-    patient_id = request.form["patient_id"]
-    filename = secure_filename(file.filename)
+        user_id = request.form.get("patient_id")
+        results = []
 
-    # Funzione semplice per auto-determinare il tipo documento
-    def guess_document_type(filename):
-        name = filename.lower()
-        if "dimissione" in name:
-            return "lettera_dimissione"
-        if "coronaro" in name:
-            return "coronarografia"
-        if "intervento" in name or "verbale" in name:
-            return "intervento"
-        if "eco" in name and "pre" in name:
-            return "eco_preoperatorio"
-        if "eco" in name and "post" in name:
-            return "eco_postoperatorio"
-        if "tc" in name or "tac" in name:
-            return "tc_cuore"
-        return "altro"
+        for file in files:
+            filename = secure_filename(file.filename)
+            document_type = guess_document_type(filename)
 
-    document_type = guess_document_type(filename)
-    patient_folder = os.path.join(UPLOAD_FOLDER, patient_id, document_type)
-    os.makedirs(patient_folder, exist_ok=True)
-    filepath = os.path.join(patient_folder, filename)
-    file.save(filepath)
+            # --- Determina patient_id_final ---
+            if document_type == "lettera_dimissione":
+                # estrai n_cartella dal PDF
+                stream = io.BytesIO(file.read())
+                with pdfplumber.open(stream) as pdf:
+                    text = "\n".join(p.extract_text() or "" for p in pdf.pages)
+                try:
+                    resp = document_controller.llm.get_response_from_document(
+                        text, document_type, model=document_controller.model_name
+                    )
+                    extracted = json.loads(resp)
+                    extracted_id = extracted.get("n_cartella")
+                except:
+                    extracted_id = None
 
-    # Salva la data di upload in un file meta.json accanto al PDF
-    from datetime import datetime
-    meta = {
-        "filename": filename,
-        "upload_date": datetime.now().strftime("%Y-%m-%d")
-    }
-    meta_path = filepath + ".meta.json"
-    with open(meta_path, "w") as f:
-        import json
-        json.dump(meta, f)
+                if extracted_id:
+                    # se l'utente ha fornito un ID diverso, errore
+                    if user_id and str(user_id) != str(extracted_id):
+                        results.append({
+                            "filename": filename,
+                            "error": "Patient ID nel documento diverso da quello inserito"
+                        })
+                        file.stream.seek(0)
+                        continue
+                    patient_id_final = extracted_id
+                else:
+                    # fallback al valore utente
+                    if not user_id:
+                        results.append({
+                            "filename": filename,
+                            "error": "Non è stato trovato il numero di cartella; inserisci patient_id"
+                        })
+                        file.stream.seek(0)
+                        continue
+                    patient_id_final = user_id
 
-    # Avvia processing (ma la risposta è subito processing)
-    print(f"[DEBUG] Starting processing for {filepath}")
-    document_controller.process_document_and_entities(filepath, patient_id, document_type)
-    print(f"[DEBUG] Finished processing for {filepath}")
+                file.stream.seek(0)
 
-    # document_id: doc_{patient_id}_{document_type}_{filename senza estensione}
-    doc_id = f"doc_{patient_id}_{document_type}_{os.path.splitext(filename)[0]}"
-    return jsonify({
-        "document_id": doc_id,
-        "patient_id": patient_id,
-        "document_type": document_type,
-        "filename": filename,
-        "status": "processing"
-    })
+            else:
+                # per tutti gli altri tipi, patient_id è obbligatorio
+                if not user_id:
+                    results.append({
+                        "filename": filename,
+                        "error": "patient_id è obbligatorio per questo tipo di documento"
+                    })
+                    continue
+                patient_id_final = user_id
 
+            # forziamo sempre stringa
+            patient_id_final = str(patient_id_final)
+
+            # --- Salvataggio su disco ---
+            patient_folder = os.path.join(UPLOAD_FOLDER, patient_id_final, document_type)
+            os.makedirs(patient_folder, exist_ok=True)
+            filepath = os.path.join(patient_folder, filename)
+            file.save(filepath)
+
+            # --- Metadata ---
+            meta = {
+                "filename": filename,
+                "upload_date": datetime.now().strftime("%Y-%m-%d")
+            }
+            with open(filepath + ".meta.json", "w", encoding="utf-8") as mf:
+                json.dump(meta, mf)
+
+            # --- Avvia processing in background ---
+            document_controller.process_document_and_entities(
+                filepath, patient_id_final, document_type
+            )
+
+            # --- Prepara risultato ---
+            doc_id = f"doc_{patient_id_final}_{document_type}_{os.path.splitext(filename)[0]}"
+            results.append({
+                "document_id": doc_id,
+                "patient_id": patient_id_final,
+                "document_type": document_type,
+                "filename": filename,
+                "status": "processing"
+            })
+
+        return jsonify(results[0] if len(results) == 1 else results)
+
+    except Exception as e:
+        app.logger.exception("Errore in upload_document")
+        return jsonify({"error": str(e)}), 500
+    
 if __name__ == "__main__":
-    app.run(port=5050, debug=False)
+    print("Routes:")
+    for rule in app.url_map.iter_rules():
+        print(f"{rule.methods} -> {rule}")
+    app.run(port=5050, debug=True)

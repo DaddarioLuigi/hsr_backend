@@ -39,55 +39,66 @@ class DocumentController:
             cleaned_text = all_text
         return cleaned_text
 
-    def process_document_and_entities(self, filepath, patient_id, document_type, provided_anagraphic=None):
+    def process_document_and_entities(
+        self,
+        filepath: str,
+        patient_id: str,
+        document_type: str,
+        provided_anagraphic: dict = None
+    ):
+        """
+        Estrae testo dal PDF, chiama l’LLM, valida mismatch e salva le entità
+        """
+        # 1. Estrai testo e pulisci
         with pdfplumber.open(filepath) as pdf:
-            document_text = "\n".join([page.extract_text() or "" for page in pdf.pages])
-            print(document_text)
-            response_json_str = self.llm.get_response_from_document(document_text, document_type, model=self.model_name)
+            all_text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+        cleaned_text = self.get_cleaned_text(all_text, [])
 
+        # 2. Chiamata LLM per tutte le entità
+        response_json_str = self.llm.get_response_from_document(
+            cleaned_text, document_type, model=self.model_name
+        )
         try:
-            entities = json.loads(response_json_str)
-            #print(entities)
-
-            if isinstance(entities, dict):
-                estratti = entities
-            elif isinstance(entities, list):
-                estratti = {e["entità"]: e["valore"] for e in entities if isinstance(e, dict)}
+            raw = json.loads(response_json_str)
+            if isinstance(raw, dict):
+                estratti = raw
             else:
-                estratti = {}
-
+                estratti = {e["entità"]: e["valore"] for e in raw if isinstance(e, dict)}
         except json.JSONDecodeError:
             estratti = {}
 
-        numero_cartella = estratti.get("n_cartella")
-        nome = estratti.get("nome")
-        cognome = estratti.get("cognome")
-        data_nascita = estratti.get("data_di_nascita")
-
+        # 3. Validazione mismatch con dati forniti dall’utente (se presenti)
         if provided_anagraphic:
-            if numero_cartella and provided_anagraphic.get("n_cartella") and str(numero_cartella) != str(provided_anagraphic.get("n_cartella")):
-                os.remove(filepath)
-                self.file_manager.remove_patient_folder_if_exists(patient_id)
-                return {"error": "Mismatch tra numero_cartella fornito e nel documento."}, 400
-            for key in ["nome", "cognome", "data_di_nascita"]:
-                if provided_anagraphic.get(key) and estratti.get(key) and str(estratti.get(key)) != str(provided_anagraphic.get(key)):
+            # controlliamo n_cartella, nome, cognome, data_di_nascita
+            for key in ("n_cartella", "nome", "cognome", "data_di_nascita"):
+                prov = provided_anagraphic.get(key)
+                ext = estratti.get(key)
+                if prov and ext and str(prov) != str(ext):
+                    # rollback file + cartella paziente
                     os.remove(filepath)
                     self.file_manager.remove_patient_folder_if_exists(patient_id)
-                    return {"error": f"Mismatch tra {key} fornito e nel documento."}, 400
-        else:
-            if document_type in ["lettera_dimissione", "eco_preoperatorio"] and not numero_cartella:
+                    return {
+                        "error": f"Mismatch tra {key} fornito e valore nel documento."
+                    }, 400
+
+        # 4. Controllo obbligatorietà per alcuni tipi di documento
+        if document_type in ("lettera_dimissione", "eco_preoperatorio"):
+            if not (estratti.get("n_cartella") or (provided_anagraphic or {}).get("n_cartella")):
                 os.remove(filepath)
                 self.file_manager.remove_patient_folder_if_exists(patient_id)
-                return {"error": "Numero cartella mancante e non fornito."}, 400
+                return {
+                    "error": f"Numero di cartella mancante per documento {document_type}."
+                }, 400
 
-        patient_folder = os.path.join(self.upload_folder, patient_id)
-        document_folder = os.path.join(patient_folder, document_type)
+        # 5. Salvo il JSON delle entità in un file dedicato
+        filename_base = os.path.splitext(os.path.basename(filepath))[0]
+        document_folder = os.path.join(self.upload_folder, patient_id, document_type)
         os.makedirs(document_folder, exist_ok=True)
-
-        output_path = os.path.join(document_folder, "entities.json")
-        with open(output_path, "w") as f:
+        output_path = os.path.join(document_folder, f"entities.json")
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(estratti, f, indent=2, ensure_ascii=False)
 
+        # 6. Aggiorno il foglio Excel
         self.excel_manager.update_excel(patient_id, document_type, estratti)
 
         return {"entities": estratti}
