@@ -26,7 +26,7 @@ class LLMExtractor:
                         "schema": schema
                     },
                     temperature=1,
-                    top_p=0.7,
+                    top_p=0.2,
                     max_tokens=8192
                 )
                 break

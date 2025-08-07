@@ -1,5 +1,5 @@
 # app.py
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, abort
 from werkzeug.utils import secure_filename
 import os
 from controller.controller import DocumentController
@@ -8,18 +8,12 @@ import io
 import json
 import pdfplumber
 from datetime import datetime
-from flask import send_from_directory
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}}, supports_credentials=True)
+# Abilita CORS per tutte le rotte e supporta le credenziali
+CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
 
-@app.after_request
-def apply_cors(response):
-    response.headers["Access-Control-Allow-Headers"]  = "Content-Type,Authorization,Range"
-    response.headers["Access-Control-Expose-Headers"] = "Content-Range,Accept-Ranges,Content-Length,Content-Type"
-    response.headers["Access-Control-Allow-Methods"]  = "GET,POST,PUT,DELETE,OPTIONS"
-    return response
-
+# Rimuovo eventuali duplicazioni o override inutili
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -127,6 +121,7 @@ def update_document_entities(document_id):
     })
 
 
+# app.py
 @app.route("/api/upload-document", methods=["POST"])
 def upload_document():
     try:
@@ -141,64 +136,107 @@ def upload_document():
             filename = secure_filename(file.filename)
             document_type = guess_document_type(filename)
 
-            # --- Determina patient_id_final ---
+            # --- Leggi file in memoria per analisi preventiva ---
+            import io, json
+            stream = io.BytesIO(file.read())
+            file_bytes = stream.getvalue()
+            file.stream.seek(0)
+
+            # Estrai testo dal PDF in memoria
+            with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+                text = "\n".join(p.extract_text() or "" for p in pdf.pages)
+
+            # Chiamata all’LLM per estrazione entità
+            response_json_str = document_controller.llm.get_response_from_document(
+                text, document_type, model=document_controller.model_name
+            )
+            try:
+                extracted = json.loads(response_json_str)
+            except json.JSONDecodeError:
+                results.append({
+                    "filename": filename,
+                    "error": "Errore durante l’analisi del documento"
+                })
+                continue
+
+            # Se non estrae nulla, scarta
+            if not extracted:
+                results.append({
+                    "filename": filename,
+                    "error": "Nessuna entità estratta; documento non valido"
+                })
+                continue
+
+            # --- Determina il patient_id finale ---
             if document_type == "lettera_dimissione":
                 # estrai n_cartella dal PDF
-                stream = io.BytesIO(file.read())
+                stream = io.BytesIO(file_bytes)
                 with pdfplumber.open(stream) as pdf:
-                    text = "\n".join(p.extract_text() or "" for p in pdf.pages)
+                    text_full = "\n".join(p.extract_text() or "" for p in pdf.pages)
                 try:
                     resp = document_controller.llm.get_response_from_document(
-                        text, document_type, model=document_controller.model_name
+                        text_full, document_type, model=document_controller.model_name
                     )
-                    extracted = json.loads(resp)
-                    extracted_id = extracted.get("n_cartella")
-                except:
+                    extracted_json = json.loads(resp)
+                    extracted_id = extracted_json.get("n_cartella")
+                except Exception:
                     extracted_id = None
 
                 if extracted_id:
-                    # se l'utente ha fornito un ID diverso, errore
                     if user_id and str(user_id) != str(extracted_id):
                         results.append({
                             "filename": filename,
                             "error": "Patient ID nel documento diverso da quello inserito"
                         })
-                        file.stream.seek(0)
                         continue
-                    patient_id_final = extracted_id
+                    patient_id_final = str(extracted_id)
                 else:
-                    # fallback al valore utente
                     if not user_id:
                         results.append({
                             "filename": filename,
                             "error": "Non è stato trovato il numero di cartella; inserisci patient_id"
                         })
-                        file.stream.seek(0)
                         continue
-                    patient_id_final = user_id
-
+                    patient_id_final = str(user_id)
                 file.stream.seek(0)
-
             else:
-                # per tutti gli altri tipi, patient_id è obbligatorio
                 if not user_id:
                     results.append({
                         "filename": filename,
                         "error": "patient_id è obbligatorio per questo tipo di documento"
                     })
                     continue
-                patient_id_final = user_id
+                patient_id_final = str(user_id)
 
-            # forziamo sempre stringa
-            patient_id_final = str(patient_id_final)
+            # --- Verifica se esiste già un PDF per questo tipo ---
+            patient_folder = os.path.join(UPLOAD_FOLDER, patient_id_final, document_type)
+            existing_pdfs = []
+            if os.path.isdir(patient_folder):
+                existing_pdfs = [
+                    f for f in os.listdir(patient_folder)
+                    if f.lower().endswith(".pdf")
+                ]
+            if existing_pdfs:
+                results.append({
+                    "filename": filename,
+                    "error": f"Esiste già un documento di tipo '{document_type}' per il paziente {patient_id_final}"
+                })
+                continue
 
             # --- Salvataggio su disco ---
-            patient_folder = os.path.join(UPLOAD_FOLDER, patient_id_final, document_type)
             os.makedirs(patient_folder, exist_ok=True)
             filepath = os.path.join(patient_folder, filename)
             file.save(filepath)
 
-            # --- Metadata ---
+            # --- Lettura anagrafica iniziale per i documenti successivi ---
+            if document_type != "lettera_dimissione":
+                provided_anagraphic = document_controller.file_manager.read_existing_entities(
+                    patient_id_final, "lettera_dimissione"
+                )
+            else:
+                provided_anagraphic = None
+
+            # Salva metadata
             meta = {
                 "filename": filename,
                 "upload_date": datetime.now().strftime("%Y-%m-%d")
@@ -206,12 +244,12 @@ def upload_document():
             with open(filepath + ".meta.json", "w", encoding="utf-8") as mf:
                 json.dump(meta, mf)
 
-            # --- Avvia processing in background ---
+            # Avvia il processing in background
             document_controller.process_document_and_entities(
-                filepath, patient_id_final, document_type
+                filepath, patient_id_final, document_type, provided_anagraphic
             )
 
-            # --- Prepara risultato ---
+            # Prepara risultato
             doc_id = f"doc_{patient_id_final}_{document_type}_{os.path.splitext(filename)[0]}"
             results.append({
                 "document_id": doc_id,
@@ -222,14 +260,17 @@ def upload_document():
             })
 
         return jsonify(results[0] if len(results) == 1 else results)
-
     except Exception as e:
         app.logger.exception("Errore in upload_document")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/uploads/<path:filename>')
+@app.route('/uploads/<path:filename>', methods=['GET', 'HEAD'])
 def uploaded_file(filename):
-    return send_from_directory('uploads', filename)
+    fullpath = os.path.join(app.root_path, 'uploads', filename)
+    if not os.path.isfile(fullpath):
+        abort(404)
+    # conditional=True abilita supporto a Range e HEAD
+    return send_file(fullpath, conditional=True)
     
 if __name__ == "__main__":
     print("Routes:")

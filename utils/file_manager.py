@@ -253,16 +253,52 @@ class FileManager:
         }
 
     def update_document_entities(self, document_id, entities):
+        """
+        Aggiorna entities.json per un documento esistente.
+        Parsing robusto di document_id per estrarre patient_id e document_type,
+        anche se il tipo contiene underscore.
+        """
+        import os, json, logging
         try:
-            parts = document_id.split('_', 3)
-            if len(parts) < 4:
+            # Verifica prefisso
+            if not document_id.startswith("doc_"):
+                logging.error(f"ID documento non valido: {document_id}")
                 return False
-            _, patient_id, document_type, _ = parts
+            rest = document_id[len("doc_"):]
+            # Estrai patient_id e resto
+            parts = rest.split("_", 1)
+            if len(parts) < 2:
+                logging.error(f"Formato document_id inaspettato: {document_id}")
+                return False
+            patient_id, remainder = parts
+            # Lista tipi documenti supportati
+            possible_types = [
+                "lettera_dimissione",
+                "coronarografia",
+                "intervento",
+                "eco_preoperatorio",
+                "eco_postoperatorio",
+                "tc_cuore",
+                "altro"
+            ]
+            # Individua il document_type più lungo che sia prefisso di remainder
+            document_type = None
+            for t in sorted(possible_types, key=lambda x: -len(x)):
+                if remainder.startswith(t + "_") or remainder == t:
+                    document_type = t
+                    break
+            if not document_type:
+                logging.error(f"Impossibile determinare document_type da: {remainder}")
+                return False
+            # Percorso cartella e JSON
             folder = os.path.join(self.UPLOAD_FOLDER, patient_id, document_type)
             entities_path = os.path.join(folder, "entities.json")
+            # Prepara dati
             entities_obj = self._entities_list_to_dict(entities)
-            with open(entities_path, "w") as f:
+            # Scrive il file
+            with open(entities_path, "w", encoding="utf-8") as f:
                 json.dump(entities_obj, f, indent=2, ensure_ascii=False)
             return True
-        except Exception:
+        except Exception as e:
+            logging.exception(f"Errore in update_document_entities: {e}")
             return False

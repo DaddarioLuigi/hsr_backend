@@ -1,7 +1,13 @@
 # llm/prompts.py
 
+from typing import Dict, List
+
 class PromptManager:
-    SCHEMAS = {
+    """
+    Gestisce schemi JSON e prompt testuali per l'estrazione di entità.
+    """
+
+    SCHEMAS: Dict[str, dict] = {
         "lettera_dimissione": {
             "name": "lettera_dimissione",
             "title": "Scheda Cardiochirurgia",
@@ -74,7 +80,7 @@ class PromptManager:
                 "IRA": { "type": "boolean" },
                 "Insufficienza_respiratoria": { "type": "boolean" },
                 "FA_di_nuova_insorgenza": { "type": "boolean" },
-                "Ritmo_alla_dimissione": { "type": "string", "enum": [0, 1, 2] },
+                "Ritmo_alla_dimissione": { "type": "string", "enum": ["0","1","2"] },
                 "H_Stay_giorni_da_intervento_a_dimissione": { "type": "number" },
                 "Morte": { "type": "boolean" },
                 "Causa_morte": { "type": "string" },
@@ -82,7 +88,8 @@ class PromptManager:
                 "esami_alla_dimissione": { "type": "string" },
                 "terapia_alla_dimissione": { "type": "string" }
             },
-            "required": ["n_cartella", "nome", "cognome"]
+            "required": ["n_cartella", "nome", "cognome"],
+            "additionalProperties": True
         },
         "coronarografia": {
             "name": "coronarografia",
@@ -122,10 +129,10 @@ class PromptManager:
                 "peso": { "type": "number" },
                 "bmi": { "type": "number" },
                 "bsa": { "type": "number" },
-                "data_esame": { "type": "string", "format": "date" },
-                "eco text": { "type": "string" }
+                "data_esame": { "type": "string", "format": "date" }
             },
-            "required": ["n_cartella", "nome", "cognome"]
+            "required": ["n_cartella", "nome", "cognome"],
+            "additionalProperties": True
         },
         "eco_postoperatorio": {
             "name": "eco_postoperatorio",
@@ -174,45 +181,43 @@ class PromptManager:
             "required": ["n_cartella", "nome", "cognome"]
         },
         "intervento": {
-    "name": "intervento",
-    "title": "Scheda Intervento Cardiochirurgico",
-    "type": "object",
-    "properties": {
-        "data_intervento": { "type": "string", "format": "date" },
-        "intervento text": { "type": "string" },
-        "primo operatore": { "type": "string" },
-        "redo": { "type": "boolean" },
-        "cec": { "type": "boolean" },
-        "cannulazionearteriosa": { "type": "string" },
-        "statopaz": { "type": "string" },
-        "cardioplegia": { "type": "string" },
-        "approcciochirurgico": { "type": "string" },
-        "entratainsala": { "type": "string", "format": "time" },
-        "iniziointervento": { "type": "string", "format": "time" },
-        "iniziocec": { "type": "string", "format": "time" },
-        "inizioclamp": { "type": "string", "format": "time" },
-        "inizioacc": { "type": "string", "format": "time" },
-        "fineacc": { "type": "string", "format": "time" },
-        "fineclamp": { "type": "string", "format": "time" },
-        "finecec": { "type": "string", "format": "time" },
-        "fineintervento": { "type": "string", "format": "time" },
-        "uscitasala": { "type": "string", "format": "time" },
-        "intervento": { "type": "string" },
-        "protesi": { "type": "string" },
-        "modello": { "type": "string" },
-        "numero": { "type": "number" }
-    },
-    "required": ["data_intervento", "intervento text", "primo operatore"]
-}
-
+            "name": "intervento",
+            "title": "Scheda Intervento Cardiochirurgico",
+            "type": "object",
+            "properties": {
+                "data_intervento": { "type": "string", "format": "date" },
+                "intervento text": { "type": "string" },
+                "primo operatore": { "type": "string" },
+                "redo": { "type": "boolean" },
+                "cec": { "type": "boolean" },
+                "cannulazionearteriosa": { "type": "string" },
+                "statopaz": { "type": "string" },
+                "cardioplegia": { "type": "string" },
+                "approcciochirurgico": { "type": "string" },
+                "entratainsala": { "type": "string", "format": "time" },
+                "iniziointervento": { "type": "string", "format": "time" },
+                "iniziocec": { "type": "string", "format": "time" },
+                "inizioclamp": { "type": "string", "format": "time" },
+                "inizioacc": { "type": "string", "format": "time" },
+                "fineacc": { "type": "string", "format": "time" },
+                "fineclamp": { "type": "string", "format": "time" },
+                "finecec": { "type": "string", "format": "time" },
+                "fineintervento": { "type": "string", "format": "time" },
+                "uscitasala": { "type": "string", "format": "time" },
+                "intervento": { "type": "string" },
+                "protesi": { "type": "string" },
+                "modello": { "type": "string" },
+                "numero": { "type": "number" }
+            },
+            "required": ["data_intervento", "intervento text", "primo operatore"]
+        }
     }
 
-
-    PROMPTS = {
+    PROMPTS: Dict[str, str] = {
         "lettera_dimissione": '''
-Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre **esclusivamente** le seguenti entità dalla **lettera di dimissione** riportata qui sotto.
+Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre le seguenti entità dalla **lettera di dimissione** riportata qui sotto.
 
-###**Entità da estrarre (solo queste):**
+### Entità da estrarre:
 
 ### Mappa delle entità e tipi
 
@@ -293,8 +298,6 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre **esc
 | esami_alla_dimissione                      | Text              | Risultati di laboratorio e strumentali prima della dimissione.                                                                                  |
 | terapia_alla_dimissione                    | Text              | Terapia farmacologica prescritta alla dimissione.                                                                                               |
 
-
-
 ---
 
 ### **Istruzioni IMPORTANTI:**
@@ -308,6 +311,8 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre **esc
     - `"entità"`: il nome dell'entità
     - `"valore"`: il valore estratto dell'entità
 **NON** aggiungere commenti, spiegazioni, note, intestazioni o altro: **solo** la lista JSON.
+-Se trovi **tabelle**, **elenchi** o **parametri** , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura).
+-Se trovi **esami** o **strumentali** (ad esempio esami di laboratorio) , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura). 
 
 ---
 
@@ -350,12 +355,12 @@ IRC (crea all'ingresso 2,64 mg/dl).
   { "entità": "fumo", "valore": true },
   { "entità": "diabete", "valore": true },
   { "entità": "insufficienza renale cronica", "valore": true },
-  { "entità": "familiarita cardiovascolare", "valore": true }
-]
-
-''',
-   "coronarografia": '''
-Sei un medico specializzato in cardiologia interventistica. Il tuo compito è estrarre esclusivamente le seguenti entità dal referto di coronarografia riportato qui sotto.
+  { "entità": "familiarita cardiovascolare", "valore": true },
+  { "entità": "emocromo", "valore": "4.5" },
+  { "entità": "creatinina", "valore": "1.2" }
+]''',
+        "coronarografia": '''
+Sei un medico specializzato in cardiologia interventistica. Il tuo compito è estrarre **esclusivamente** le seguenti entità dal referto di coronarografia:
 
 ### Entità da estrarre (solo queste):
 
@@ -406,107 +411,39 @@ Esempio di output:
   ...
 ]
 ''',
-"intervento":
-'''
-Sei un medico cardiochirurgo. Il tuo compito è estrarre esclusivamente le seguenti entità dal referto di intervento cardiochirurgico qui sotto riportato.
+        "eco_preoperatorio": '''
+Sei un medico specializzato in cardiochirurgia.
+Estrai le seguenti entità dall’ecocardiogramma preoperatorio:
 
-### Entità da estrarre:
-
-| Entità                   | Tipo            | Descrizione                                              |
-|-------------------------|-----------------|----------------------------------------------------------|
-| n_cartella              | Number          | Numero identificativo della cartella clinica             |
-| data_intervento         | Date            | Data dell'intervento eseguito                            |
-| intervento text         | Text            | Descrizione completa dell’intervento                     |
-| primo operatore         | Text            | Nome del primo operatore                                 |
-| redo                    | Boolean         | Se l'intervento è un redo (re-intervento)               |
-| cec                     | Boolean         | Uso di circolazione extracorporea (CEC)                 |
-| cannulazionearteriosa   | Text            | Tipo di cannulazione arteriosa utilizzata               |
-| statopaz                | Text            | Stato del paziente al termine dell’intervento          |
-| cardioplegia            | Text            | Tipo di cardioplegia                                     |
-| approcciochirurgico     | Text            | Approccio chirurgico adottato                            |
-| entratainsala           | Time            | Ora di ingresso in sala operatoria                      |
-| iniziointervento        | Time            | Ora di inizio intervento                                 |
-| iniziocec               | Time            | Ora di inizio CEC                                        |
-| inizioclamp             | Time            | Ora di inizio clampaggio                                 |
-| inizioacc               | Time            | Ora di inizio accensione                                 |
-| fineacc                 | Time            | Ora di fine accensione                                   |
-| fineclamp               | Time            | Ora di fine clampaggio                                   |
-| finecec                 | Time            | Ora di fine CEC                                          |
-| fineintervento          | Time            | Ora di fine intervento                                   |
-| uscitasala              | Time            | Ora di uscita dalla sala operatoria                      |
-| intervento              | Text            | Tipo principale di intervento                            |
-| protesi                 | Text            | Tipo di protesi utilizzata                               |
-| modello                 | Text            | Modello della protesi                                    |
-| numero                  | Number          | Numero seriale della protesi                             |
+- n_cartella (Number)
+- nome (Text)
+- cognome (Text)
+- data_di_nascita (Date)
+- altezza (Number)
+- peso (Number)
+- bmi (Number)
+- bsa (Number)
+- data_esame (Date)
 
 ---
 
-### Istruzioni Importanti:
+**Istruzioni aggiuntive:**
+Se trovi **tabelle**, **elenchi** o **parametri** (es. "Diametro telediastolico: 61 mm", "Frazione di eiezione: 45 %"), estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura).
 
-- Non estrarre nessuna entità diversa da quelle elencate.
-- Se un’entità non è presente nel documento, non inventarla.
-- Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con due chiavi:
-    - "entità": il nome dell’entità
-    - "valore": il valore estratto
-- Nessuna spiegazione, nessun commento, solo la lista JSON.
-
----
+**Formato di output:**
+Una lista JSON di oggetti `{ "entità": <nome>, "valore": <valore> }`, **niente altro**.
 ''',
-"eco_postoperatorio": '''
-Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre esclusivamente le seguenti entità dall’ecocardiogramma postoperatorio riportato qui sotto.
+        "eco_postoperatorio": '''
+Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre **esclusivamente** le seguenti entità dall’ecocardiogramma postoperatorio:
 
-### Entità da estrarre (solo queste):
+- data_esame (Date)
+- eco_text (Text)
 
-| Entità      | Tipo    | Descrizione                                     |
-|-------------|---------|-------------------------------------------------|
-| data_esame  | Date    | Data di esecuzione dell’ecocardiogramma        |
-| eco_text    | Text    | Descrizione completa del referto ecocardiografico |
-
----
-
-### Istruzioni IMPORTANTI:
-
-- Ragiona considerando frase per frase.
-- Non estrarre nessuna entità diversa da quelle elencate.
-- Se un'entità non è presente, non inventarla.
-- Il formato di output deve essere una lista JSON con:
-    - "entità": nome dell'entità
-    - "valore": valore estratto
-Nessun commento o testo aggiuntivo.
+**Formato di output:**
+Lista JSON di oggetti `{ "entità": <nome>, "valore": <valore> }`.
 ''',
-"eco_preoperatorio": '''
-Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre esclusivamente le seguenti entità dall’ecocardiogramma preoperatorio riportato qui sotto.
-
-### Entità da estrarre (solo queste):
-
-| Entità           | Tipo     | Descrizione                                    |
-|------------------|----------|------------------------------------------------|
-| n_cartella       | Number   | Numero identificativo univoco della cartella   |
-| nome             | Text     | Nome del paziente                              |
-| cognome          | Text     | Cognome del paziente                           |
-| data_di_nascita  | Date     | Data di nascita del paziente                   |
-| altezza          | Number   | Altezza del paziente in centimetri             |
-| peso             | Number   | Peso del paziente in kg                        |
-| bmi              | Number   | Body Mass Index                                |
-| bsa              | Number   | Body Surface Area                              |
-| data_esame       | Date     | Data di esecuzione dell’ecocardiogramma       |
-| eco text         | Text     | Descrizione completa del referto ecocardiografico |
-
----
-
-### Istruzioni IMPORTANTI:
-
-- Ragiona considerando frase per frase.
-- Non estrarre nessuna entità diversa da quelle elencate.
-- Se un'entità non è presente, non inventarla.
-- Il formato di output deve essere una lista JSON con:
-    - "entità": nome dell'entità
-    - "valore": valore estratto
-Nessun commento o testo aggiuntivo.
-'''
-,
-"tc_cuore": '''
-Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre esclusivamente le seguenti entità dal referto di TC Cuore riportato qui sotto.
+        "tc_cuore": '''
+Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre **esclusivamente** le seguenti entità dal referto di TC Cuore:
 
 ### Entità da estrarre (solo queste):
 
@@ -552,21 +489,75 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre esclu
     - "entità": nome dell'entità
     - "valore": valore estratto
 Nessun commento o testo aggiuntivo.
+''',
+        "intervento": '''
+Sei un medico cardiochirurgo. Il tuo compito è estrarre **esclusivamente** le seguenti entità dal referto di intervento cardiochirurgico:
+
+### Entità da estrarre:
+
+| Entità                   | Tipo            | Descrizione                                              |
+|-------------------------|-----------------|----------------------------------------------------------|
+| n_cartella              | Number          | Numero identificativo della cartella clinica             |
+| data_intervento         | Date            | Data dell'intervento eseguito                            |
+| intervento text         | Text            | Descrizione completa dell’intervento                     |
+| primo operatore         | Text            | Nome del primo operatore                                 |
+| redo                    | Boolean         | Se l'intervento è un redo (re-intervento)               |
+| cec                     | Boolean         | Uso di circolazione extracorporea (CEC)                 |
+| cannulazionearteriosa   | Text            | Tipo di cannulazione arteriosa utilizzata               |
+| statopaz                | Text            | Stato del paziente al termine dell’intervento          |
+| cardioplegia            | Text            | Tipo di cardioplegia                                     |
+| approcciochirurgico     | Text            | Approccio chirurgico adottato                            |
+| entratainsala           | Time            | Ora di ingresso in sala operatoria                      |
+| iniziointervento        | Time            | Ora di inizio intervento                                 |
+| iniziocec               | Time            | Ora di inizio CEC                                        |
+| inizioclamp             | Time            | Ora di inizio clampaggio                                 |
+| inizioacc               | Time            | Ora di inizio accensione                                 |
+| fineacc                 | Time            | Ora di fine accensione                                   |
+| fineclamp               | Time            | Ora di fine clampaggio                                   |
+| finecec                 | Time            | Ora di fine CEC                                          |
+| fineintervento          | Time            | Ora di fine intervento                                   |
+| uscitasala              | Time            | Ora di uscita dalla sala operatoria                      |
+| intervento              | Text            | Tipo principale di intervento                            |
+| protesi                 | Text            | Tipo di protesi utilizzata                               |
+| modello                 | Text            | Modello della protesi                                    |
+| numero                  | Number          | Numero seriale della protesi                             |
+
+---
+
+### Istruzioni Importanti:
+
+- Non estrarre nessuna entità diversa da quelle elencate.
+- Se un’entità non è presente nel documento, non inventarla.
+- Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con due chiavi:
+    - "entità": il nome dell’entità
+    - "valore": il valore estratto
+- Nessuna spiegazione, nessun commento, solo la lista JSON.
+
+---
 '''
     }
 
+    def get_schema_for(self, document_type: str) -> dict:
+        """
+        Restituisce lo schema JSON per il tipo di documento.
+        """
+        if document_type not in self.SCHEMAS:
+            raise ValueError(f"Schema non definito per {document_type}")
+        return self.SCHEMAS[document_type]
+
     def get_prompt_for(self, document_type: str) -> str:
         """
-        Restituisce il prompt associato al document_type.
+        Restituisce il prompt testuale per il tipo di documento.
         """
         if document_type not in self.PROMPTS:
             raise ValueError(f"Prompt non definito per {document_type}")
         return self.PROMPTS[document_type]
 
-    def get_schema_for(self, document_type: str) -> dict:
+    def get_spec_for(self, document_type: str) -> Dict[str, List[str]]:
         """
-        Restituisce lo schema JSON associato al document_type.
+        Restituisce un dict con:
+          - 'entities': lista di chiavi dal JSON schema
         """
-        if document_type not in self.SCHEMAS:
-            raise ValueError(f"Schema non definito per {document_type}")
-        return self.SCHEMAS[document_type]
+        schema = self.get_schema_for(document_type)
+        entities = list(schema.get("properties", {}).keys())
+        return { "entities": entities }

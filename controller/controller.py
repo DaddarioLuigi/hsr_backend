@@ -5,6 +5,9 @@ import numpy as np
 from llm.extractor import LLMExtractor
 from utils.excel_manager import ExcelManager
 from utils.file_manager import FileManager
+from utils.entity_extractor import EntityExtractor
+from llm.prompts import PromptManager
+from utils.table_parser import TableParser
 
 class DocumentController:
     def __init__(self, model_name="deepseek-ai/DeepSeek-V3"):
@@ -12,32 +15,50 @@ class DocumentController:
         self.llm = LLMExtractor()
         self.excel_manager = ExcelManager()
         self.file_manager = FileManager()
+        self.table_parser = TableParser()
+        self.prompt_manager = PromptManager()
         self.upload_folder = "uploads"
 
-    def get_text_to_remove(self, all_tables):
+    def get_text_to_remove(self, all_tables: list[list[list[str]]]) -> list[str]:
         text_to_remove = []
         for table in all_tables:
-            table_np = np.array(table)
-            text_to_remove.extend([
-                str(" ".join(row)).replace(" ", "").replace("\n", "") for row in table_np
-            ])
+            arr = np.array(table)
+            for row in arr:
+                # unisce le celle e normalizza per confronto
+                norm = "".join(str(cell) for cell in row).replace(" ", "").replace("\n", "")
+                if norm:
+                    text_to_remove.append(norm)
         return text_to_remove
 
-    def remove_tables(self, all_text, text_to_remove):
-        clean_text = all_text
-        for row in clean_text.split('\n'):
-            row_ = row.replace(" ", "").replace("\n", "")
-            if row_ in text_to_remove:
-                clean_text = clean_text.replace(row + '\n', '')
-        return clean_text
+    def remove_tables(self, all_text: str, text_to_remove: list[str]) -> str:
+        clean_lines = []
+        for line in all_text.splitlines():
+            norm = line.replace(" ", "").replace("\n", "")
+            if norm not in text_to_remove:
+                clean_lines.append(line)
+        return "\n".join(clean_lines)
 
-    def get_cleaned_text(self, all_text, all_tables):
-        if len(all_tables) > 0:
+    def get_cleaned_text(self, all_text: str, all_tables: list[list[list[str]]]) -> str:
+        if all_tables:
             text_to_remove = self.get_text_to_remove(all_tables)
-            cleaned_text = self.remove_tables(all_text, text_to_remove)
-        else:
-            cleaned_text = all_text
-        return cleaned_text
+            return self.remove_tables(all_text, text_to_remove)
+        return all_text
+
+    def extract_from_tables(self, tables: list[list[list[str]]]) -> dict:
+        entities: dict[str, str] = {}
+        for table in tables:
+            if not table or len(table) < 2:
+                continue
+            headers = [h.strip() for h in table[0] if h]
+            for row in table[1:]:
+                for header, cell in zip(headers, row):
+                    if header and cell and str(cell).strip():
+                        val = str(cell).strip()
+                        if header in entities:
+                            entities[header] = f"{entities[header]}, {val}"
+                        else:
+                            entities[header] = val
+        return entities
 
     def process_document_and_entities(
         self,
@@ -45,86 +66,96 @@ class DocumentController:
         patient_id: str,
         document_type: str,
         provided_anagraphic: dict = None
-    ):
+    ) -> dict:
         """
-        Estrae testo dal PDF, chiama l’LLM, valida mismatch e salva le entità
+        1. Estrae testo completo dal PDF.
+        2. Costruisce prompt per LLM con istruzioni esplicite e implicite.
+        3. Riceve JSON di output dal modello.
+        4. Parsifica con EntityExtractor.
+        5. Sovrascrive anagrafica se fornita.
+        6. Esegue controlli obbligatori.
+        7. Salva e restituisce dizionario entità->valore.
         """
-        # 1. Estrai testo e pulisci
+        # 1. Estrai testo
         with pdfplumber.open(filepath) as pdf:
-            all_text = "\n".join(page.extract_text() or "" for page in pdf.pages)
-        cleaned_text = self.get_cleaned_text(all_text, [])
+            text = "\n".join(page.extract_text() or "" for page in pdf.pages)
 
-        # 2. Chiamata LLM per tutte le entità
-        response_json_str = self.llm.get_response_from_document(
-            cleaned_text, document_type, model=self.model_name
+        # 2. Prepara prompt
+        prompt = self.prompt_manager.get_prompt_for(document_type)
+        full_prompt = prompt + "\n```\n" + text + "\n```"
+        spec = self.prompt_manager.get_spec_for(document_type)
+        explicit_keys = spec['entities']
+
+        # 3. Richiesta al modello
+        response_str = self.llm.get_response_from_document(
+            full_prompt, document_type, model=self.model_name
         )
-        try:
-            raw = json.loads(response_json_str)
-            if isinstance(raw, dict):
-                estratti = raw
-            else:
-                estratti = {e["entità"]: e["valore"] for e in raw if isinstance(e, dict)}
-        except json.JSONDecodeError:
-            estratti = {}
 
-        # 3. Validazione mismatch con dati forniti dall’utente (se presenti)
+        # 4. Parsifica risposta
+        extractor = EntityExtractor(explicit_keys)
+        entities = extractor.parse_llm_response(response_str, text)
+
+        # 5. Sovrascrivi anagrafica se fornita
         if provided_anagraphic:
-            # controlliamo n_cartella, nome, cognome, data_di_nascita
+            for key in ("n_cartella", "nome", "cognome"):
+                if provided_anagraphic.get(key):
+                    entities[key] = provided_anagraphic[key]
+
+        # 6. Controlli obbligatori
+        if document_type == "lettera_dimissione" and provided_anagraphic:
             for key in ("n_cartella", "nome", "cognome", "data_di_nascita"):
                 prov = provided_anagraphic.get(key)
-                ext = estratti.get(key)
+                ext = entities.get(key)
                 if prov and ext and str(prov) != str(ext):
-                    # rollback file + cartella paziente
                     os.remove(filepath)
                     self.file_manager.remove_patient_folder_if_exists(patient_id)
-                    return {
-                        "error": f"Mismatch tra {key} fornito e valore nel documento."
-                    }, 400
+                    return {"error": f"Mismatch tra {key} fornito e documento."}, 400
 
-        # 4. Controllo obbligatorietà per alcuni tipi di documento
         if document_type in ("lettera_dimissione", "eco_preoperatorio"):
-            if not (estratti.get("n_cartella") or (provided_anagraphic or {}).get("n_cartella")):
+            if not entities.get("n_cartella"):
                 os.remove(filepath)
                 self.file_manager.remove_patient_folder_if_exists(patient_id)
-                return {
-                    "error": f"Numero di cartella mancante per documento {document_type}."
-                }, 400
+                return {"error": f"Numero di cartella mancante per {document_type}."}, 400
 
-        # 5. Salvo il JSON delle entità in un file dedicato
-        filename_base = os.path.splitext(os.path.basename(filepath))[0]
-        document_folder = os.path.join(self.upload_folder, patient_id, document_type)
-        os.makedirs(document_folder, exist_ok=True)
-        output_path = os.path.join(document_folder, f"entities.json")
+        # 7. Salva JSON
+        output_dir = os.path.join(self.upload_folder, patient_id, document_type)
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, "entities.json")
         with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(estratti, f, indent=2, ensure_ascii=False)
+            json.dump(entities, f, ensure_ascii=False, indent=2)
 
-        # 6. Aggiorno il foglio Excel
-        self.excel_manager.update_excel(patient_id, document_type, estratti)
+        # Aggiorna anche l'Excel dinamico
+        self.excel_manager.update_excel(patient_id, document_type, entities)
 
-        return {"entities": estratti}
+        return entities
 
-
-    def update_entities_for_document(self, patient_id, document_type, filename, updated_entities=None, preview=False):
+    def update_entities_for_document(
+        self,
+        patient_id: str,
+        document_type: str,
+        filename: str,
+        updated_entities: dict = None,
+        preview: bool = False
+    ) -> dict or list:
         path = os.path.join(self.upload_folder, patient_id, document_type, "entities.json")
         if preview or not updated_entities:
             if os.path.exists(path):
-                with open(path) as f:
+                with open(path, "r", encoding="utf-8") as f:
                     return json.load(f)
             return []
 
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(updated_entities, f, indent=2, ensure_ascii=False)
-
         return {"status": "updated"}
 
-    def update_document_entities(self, document_id, entities):
+    def update_document_entities(self, document_id: str, entities: dict) -> dict:
         return self.file_manager.update_document_entities(document_id, entities)
 
-    def list_existing_patients(self):
+    def list_existing_patients(self) -> list:
         return self.file_manager.get_patients_summary()
 
-    def get_patient_detail(self, patient_id):
+    def get_patient_detail(self, patient_id: str) -> dict:
         return self.file_manager.get_patient_detail(patient_id)
 
-    def get_document_detail(self, document_id):
+    def get_document_detail(self, document_id: str) -> dict:
         return self.file_manager.get_document_detail(document_id)
