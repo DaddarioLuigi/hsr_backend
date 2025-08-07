@@ -1,5 +1,5 @@
 import logging
-from flask import Flask, request, jsonify, send_file, abort
+from flask import Flask, request, jsonify, send_file, abort, redirect
 from werkzeug.utils import secure_filename
 import os
 from controller.controller import DocumentController
@@ -7,6 +7,9 @@ from flask_cors import CORS
 import io
 import json
 import pdfplumber
+from datetime import datetime
+from utils.drive_uploader import upload_to_drive, drive_service
+from googleapiclient.http import MediaIoBaseDownload
 
 # Configura logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
@@ -80,6 +83,34 @@ def update_entities():
 def export_excel():
     log_route("export_excel")
     path = document_controller.excel_manager.export_excel_file()
+    meta_path = path + ".drive.json"
+    meta = None
+    if os.path.exists(meta_path):
+        with open(meta_path, "r", encoding="utf-8") as f:
+            meta = json.load(f)
+    else:
+        drive_folder = os.getenv("DRIVE_FOLDER_ID")
+        if drive_folder:
+            try:
+                meta = upload_to_drive(path, drive_folder)
+                with open(meta_path, "w", encoding="utf-8") as f:
+                    json.dump(meta, f, indent=2, ensure_ascii=False)
+            except Exception as e:
+                app.logger.warning(f"Upload Excel su Drive fallito: {e}")
+    if request.args.get("download") == "1" and meta and meta.get("id"):
+        try:
+            request_drive = drive_service.files().get_media(fileId=meta["id"])
+            fh = io.BytesIO()
+            downloader = MediaIoBaseDownload(fh, request_drive)
+            done = False
+            while not done:
+                status, done = downloader.next_chunk()
+            fh.seek(0)
+            return send_file(fh, as_attachment=True, download_name="dati_clinici.xlsx")
+        except Exception as e:
+            app.logger.warning(f"Download Excel da Drive fallito: {e}")
+    if meta and meta.get("webViewLink"):
+        return jsonify({"webViewLink": meta["webViewLink"]})
     app.logger.info(f"Excel scritto in: {path}")
     return send_file(path, as_attachment=True, download_name="dati_clinici.xlsx")
 
@@ -213,7 +244,7 @@ def upload_document():
                 continue
 
             # Salvataggio su disco e upload su Drive
-            filepath = document_controller.file_manager.save_file(
+            filepath, drive_meta = document_controller.file_manager.save_file(
                 patient_id_final,
                 document_type,
                 filename,
@@ -229,12 +260,16 @@ def upload_document():
                 filepath, patient_id_final, document_type, provided_anagraphic
             )
 
+            drive_id = drive_meta.get("id") if drive_meta else None
+            drive_link = drive_meta.get("webViewLink") if drive_meta else None
             results.append({
                 "document_id": f"doc_{patient_id_final}_{document_type}_{os.path.splitext(filename)[0]}",
                 "patient_id": patient_id_final,
                 "document_type": document_type,
                 "filename": filename,
-                "status": "processing"
+                "status": "processing",
+                "drive_id": drive_id,
+                "drive_link": drive_link
             })
 
         return jsonify(results[0] if len(results) == 1 else results)
@@ -246,10 +281,30 @@ def upload_document():
 def uploaded_file(filename):
     log_route("uploaded_file")
     fullpath = os.path.join(app.root_path, 'uploads', filename)
-    if not os.path.isfile(fullpath):
-        app.logger.warning(f"File non trovato: {fullpath}")
-        abort(404)
-    return send_file(fullpath, conditional=True)
+    if os.path.isfile(fullpath):
+        return send_file(fullpath, conditional=True)
+    meta_path = fullpath + ".drive.json"
+    if os.path.exists(meta_path):
+        try:
+            with open(meta_path, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+            file_id = meta.get("id")
+            link = meta.get("webViewLink")
+            if request.method == "GET" and file_id:
+                req = drive_service.files().get_media(fileId=file_id)
+                fh = io.BytesIO()
+                downloader = MediaIoBaseDownload(fh, req)
+                done = False
+                while not done:
+                    status, done = downloader.next_chunk()
+                fh.seek(0)
+                return send_file(fh, download_name=os.path.basename(filename), conditional=True)
+            if link:
+                return redirect(link)
+        except Exception as e:
+            app.logger.warning(f"Accesso a Drive fallito per {filename}: {e}")
+    app.logger.warning(f"File non trovato: {fullpath}")
+    abort(404)
 
 @app.route("/")
 def index():
