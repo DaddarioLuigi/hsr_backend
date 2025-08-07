@@ -51,6 +51,16 @@ La documentazione OpenAPI è disponibile nel file [`openapi.yaml`](./openapi.yam
 - `uploads/` — Cartelle e file dei pazienti e documenti
 - `openapi.yaml` — Documentazione OpenAPI
 
+## Configurazione Google Drive
+
+Variabili d'ambiente per l'integrazione con Google Drive:
+
+- `GOOGLE_APPLICATION_CREDENTIALS`: path al file JSON del service account.
+- `DRIVE_FOLDER_ID`: ID della cartella principale per i PDF.
+- `DRIVE_EXPORT_FOLDER_ID`: ID della cartella per i file Excel.
+
+Le cartelle devono essere condivise con l'account del service account.
+
 ## Note per il frontend developer
 
 - Tutte le risposte e i parametri sono documentati in `openapi.yaml`.
