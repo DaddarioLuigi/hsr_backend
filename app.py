@@ -271,6 +271,10 @@ def uploaded_file(filename):
         abort(404)
     # conditional=True abilita supporto a Range e HEAD
     return send_file(fullpath, conditional=True)
+
+@app.route("/")
+def index():
+    return "Hello from Railway!"
     
 if __name__ == "__main__":
     print("Routes:")
