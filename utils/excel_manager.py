@@ -6,8 +6,10 @@ import json
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class ExcelManager:
-    EXPORT_DIR = "export"
-    EXPORT_PATH = os.path.join(EXPORT_DIR, "output.xlsx")
+    EXPORT_FOLDER = os.getenv("EXPORT_FOLDER", "export")
+
+    def __init__(self):
+        os.makedirs(self.EXPORT_FOLDER, exist_ok=True)
 
     @staticmethod
     def normalize_key(key: str) -> str:
@@ -26,7 +28,7 @@ class ExcelManager:
         """
         Crea il file Excel vuoto se non esiste, con almeno un foglio temporaneo.
         """
-        os.makedirs(self.EXPORT_DIR, exist_ok=True)
+        os.makedirs(self.EXPORT_FOLDER, exist_ok=True)
         if not os.path.exists(self.EXPORT_PATH):
             with pd.ExcelWriter(self.EXPORT_PATH, engine='openpyxl') as writer:
                 # Crea un foglio temporaneo per evitare errori openpyxl
@@ -38,7 +40,7 @@ class ExcelManager:
         Aggiunge o aggiorna i dati estratti per un paziente sul foglio relativo a document_type.
         Le colonne vengono aggiunte dinamicamente in base alle entità trovate.
         """
-        os.makedirs(self.EXPORT_DIR, exist_ok=True)
+        os.makedirs(self.EXPORT_FOLDER, exist_ok=True)
         # Normalizza tutte le chiavi in estratti
         normalized = {self.normalize_key(k): v for k, v in estratti.items()}
         sheet = document_type
@@ -91,7 +93,7 @@ class ExcelManager:
         - Colonne = unione di tutte le chiavi trovate nei vari entities.json di quel tipo
         - Ogni riga = un entities.json
         """
-        os.makedirs(self.EXPORT_DIR, exist_ok=True)
+        os.makedirs(self.EXPORT_FOLDER, exist_ok=True)
         # Mappa: tipo_doc -> lista di dict (ogni dict = entities.json normalizzato)
         doc_data = {}
         # Mappa: tipo_doc -> set di tutte le chiavi trovate

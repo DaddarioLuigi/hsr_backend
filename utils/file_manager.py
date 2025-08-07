@@ -4,7 +4,32 @@ import shutil
 import re
 
 class FileManager:
-    UPLOAD_FOLDER = "uploads"
+
+    #UPLOAD_FOLDER = "uploads"
+    UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "uploads")
+
+    def __init__(self):
+        os.makedirs(self.UPLOAD_FOLDER, exist_ok=True)
+    
+    def save_file(self, patient_id: str, document_type: str, filename: str, file_stream) -> str:
+        # 1) crea cartella
+        folder = os.path.join(self.UPLOAD_FOLDER, patient_id, document_type)
+        os.makedirs(folder, exist_ok=True)
+        # 2) scrivi su disco
+        filepath = os.path.join(folder, filename)
+        with open(filepath, "wb") as f:
+            f.write(file_stream.read())
+        # 3) upload su Drive
+        drive_id = os.getenv("DRIVE_FOLDER_ID")
+        if drive_id:
+            try:
+                meta = upload_to_drive(filepath, drive_id)
+                with open(filepath + ".drive.json", "w", encoding="utf-8") as md:
+                    json.dump(meta, md, indent=2, ensure_ascii=False)
+            except Exception as e:
+                logging.warning(f"Drive upload fallito per {filepath}: {e}")
+        return filepath
+
 
     def remove_patient_folder_if_exists(self, patient_id: str):
         folder_path = os.path.join(self.UPLOAD_FOLDER, patient_id)

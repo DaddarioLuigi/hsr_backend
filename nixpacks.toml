@@ -1,2 +1,2 @@
 [start]
-cmd = "gunicorn app:app --access-logfile - --error-logfile - --timeout 120"
+cmd = "gunicorn app:app --access-logfile - --error-logfile - --timeout 240"

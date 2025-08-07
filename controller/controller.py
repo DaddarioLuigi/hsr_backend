@@ -10,28 +10,40 @@ from llm.prompts import PromptManager
 from utils.table_parser import TableParser
 
 class DocumentController:
-    def __init__(self, model_name="deepseek-ai/DeepSeek-V3"):
+    def __init__(
+        self,
+        model_name: str = "deepseek-ai/DeepSeek-V3",
+        upload_folder: str | None = None,
+        export_folder: str | None = None,
+    ):
         self.model_name = model_name
         self.llm = LLMExtractor()
         self.excel_manager = ExcelManager()
         self.file_manager = FileManager()
         self.table_parser = TableParser()
         self.prompt_manager = PromptManager()
-        self.upload_folder = "uploads"
+
+        # usa la cartella passata da app.py o quella in env
+        self.upload_folder = upload_folder or os.getenv("UPLOAD_FOLDER", "uploads")
+        # allinea FileManager al medesimo percorso
+        self.file_manager.UPLOAD_FOLDER = self.upload_folder
+
+        # (opzionale) allinea anche ExcelManager
+        if export_folder:
+            self.excel_manager.EXPORT_FOLDER = export_folder
 
     def get_text_to_remove(self, all_tables: list[list[list[str]]]) -> list[str]:
-        text_to_remove = []
+        text_to_remove: list[str] = []
         for table in all_tables:
             arr = np.array(table)
             for row in arr:
-                # unisce le celle e normalizza per confronto
                 norm = "".join(str(cell) for cell in row).replace(" ", "").replace("\n", "")
                 if norm:
                     text_to_remove.append(norm)
         return text_to_remove
 
     def remove_tables(self, all_text: str, text_to_remove: list[str]) -> str:
-        clean_lines = []
+        clean_lines: list[str] = []
         for line in all_text.splitlines():
             norm = line.replace(" ", "").replace("\n", "")
             if norm not in text_to_remove:
@@ -67,15 +79,6 @@ class DocumentController:
         document_type: str,
         provided_anagraphic: dict = None
     ) -> dict:
-        """
-        1. Estrae testo completo dal PDF.
-        2. Costruisce prompt per LLM con istruzioni esplicite e implicite.
-        3. Riceve JSON di output dal modello.
-        4. Parsifica con EntityExtractor.
-        5. Sovrascrive anagrafica se fornita.
-        6. Esegue controlli obbligatori.
-        7. Salva e restituisce dizionario entità->valore.
-        """
         # 1. Estrai testo
         with pdfplumber.open(filepath) as pdf:
             text = "\n".join(page.extract_text() or "" for page in pdf.pages)
@@ -117,8 +120,8 @@ class DocumentController:
                 self.file_manager.remove_patient_folder_if_exists(patient_id)
                 return {"error": f"Numero di cartella mancante per {document_type}."}, 400
 
-        # 7. Salva JSON
-        output_dir = os.path.join(self.upload_folder, patient_id, document_type)
+        # 7. Salva JSON in upload_folder configurata
+        output_dir = os.path.join(self.file_manager.UPLOAD_FOLDER, patient_id, document_type)
         os.makedirs(output_dir, exist_ok=True)
         output_path = os.path.join(output_dir, "entities.json")
         with open(output_path, "w", encoding="utf-8") as f:
@@ -136,19 +139,18 @@ class DocumentController:
         filename: str,
         updated_entities: dict = None,
         preview: bool = False
-    ) -> dict or list:
+    ) -> dict | list:
         path = os.path.join(self.upload_folder, patient_id, document_type, "entities.json")
         if preview or not updated_entities:
             if os.path.exists(path):
                 with open(path, "r", encoding="utf-8") as f:
                     return json.load(f)
             return []
-
         with open(path, "w", encoding="utf-8") as f:
             json.dump(updated_entities, f, indent=2, ensure_ascii=False)
         return {"status": "updated"}
 
-    def update_document_entities(self, document_id: str, entities: dict) -> dict:
+    def update_document_entities(self, document_id: str, entities: dict) -> bool:
         return self.file_manager.update_document_entities(document_id, entities)
 
     def list_existing_patients(self) -> list:

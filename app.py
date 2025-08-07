@@ -1,4 +1,3 @@
-# app.py
 import logging
 from flask import Flask, request, jsonify, send_file, abort
 from werkzeug.utils import secure_filename
@@ -20,22 +19,24 @@ CORS(app, origins=[
     "http://localhost:3000"
 ], supports_credentials=True)
 
-# Cartella per upload
-#UPLOAD_FOLDER = "uploads"
-#os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+EXPORT_FOLDER = os.getenv("EXPORT_FOLDER", "./export")
+UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "./uploads")
 
-UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "/tmp/uploads")
+os.makedirs(EXPORT_FOLDER, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-document_controller = DocumentController()
+app.config.update({
+    "UPLOAD_FOLDER": UPLOAD_FOLDER,
+    "EXPORT_FOLDER": EXPORT_FOLDER
+})
 
-# Funzione per logging route
+document_controller = DocumentController(
+    upload_folder=UPLOAD_FOLDER,
+    export_folder=EXPORT_FOLDER
+)
 
 def log_route(route_name):
     app.logger.info(f"Endpoint chiamato: {route_name}")
-
-# Funzione per determinare tipo di documento
 
 def guess_document_type(filename):
     name = filename.lower()
@@ -212,17 +213,20 @@ def upload_document():
                 results.append({"filename": filename, "error": f"Esiste già un documento di tipo '{document_type}' per il paziente {patient_id_final}"})
                 continue
 
-            # Salvataggio su disco
-            os.makedirs(patient_folder, exist_ok=True)
-            filepath = os.path.join(patient_folder, filename)
-            file.save(filepath)
+            # Salvataggio su disco e upload su Drive
+            filepath = document_controller.file_manager.save_file(
+                patient_id_final,
+                document_type,
+                filename,
+                file
+            )
             app.logger.info(f"File salvato in: {filepath}")
 
             # Lettura anagrafica iniziale
             provided_anagraphic = document_controller.file_manager.read_existing_entities(patient_id_final, "lettera_dimissione") if document_type != "lettera_dimissione" else None
 
             # Metadata
-            meta = {"filename": filename, "upload_date": datetime.now().strftime("%Y-%m-%d")}  
+            meta = {"filename": filename, "upload_date": datetime.now().strftime("%Y-%m-%d")}
             with open(filepath + ".meta.json", "w", encoding="utf-8") as mf:
                 json.dump(meta, mf)
             app.logger.info(f"Metadata salvato per: {filename}")
