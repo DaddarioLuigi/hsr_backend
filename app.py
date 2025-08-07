@@ -255,12 +255,6 @@ def upload_document():
             # Lettura anagrafica iniziale
             provided_anagraphic = document_controller.file_manager.read_existing_entities(patient_id_final, "lettera_dimissione") if document_type != "lettera_dimissione" else None
 
-            # Metadata
-            meta = {"filename": filename, "upload_date": datetime.now().strftime("%Y-%m-%d")}
-            with open(filepath + ".meta.json", "w", encoding="utf-8") as mf:
-                json.dump(meta, mf)
-            app.logger.info(f"Metadata salvato per: {filename}")
-
             # Processing async
             document_controller.process_document_and_entities(
                 filepath, patient_id_final, document_type, provided_anagraphic

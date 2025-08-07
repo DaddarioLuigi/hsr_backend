@@ -3,8 +3,16 @@ import json
 import shutil
 import re
 import logging
+from datetime import datetime
+
+from .drive_uploader import (
+    upload_to_drive,
+    ensure_folder,
+    download_from_drive,
+)
 
 from utils.drive_uploader import upload_to_drive
+
 
 class FileManager:
 
@@ -14,14 +22,43 @@ class FileManager:
     def __init__(self):
         os.makedirs(self.UPLOAD_FOLDER, exist_ok=True)
     
+    def save_file(self, patient_id: str, document_type: str, filename: str, file_stream) -> str:
+        # 1) crea cartella locale
     def save_file(self, patient_id: str, document_type: str, filename: str, file_stream) -> tuple[str, dict | None]:
         # 1) crea cartella
         folder = os.path.join(self.UPLOAD_FOLDER, patient_id, document_type)
         os.makedirs(folder, exist_ok=True)
+
         # 2) scrivi su disco
         filepath = os.path.join(folder, filename)
         with open(filepath, "wb") as f:
             f.write(file_stream.read())
+
+        # 3) metadati
+        meta = {"filename": filename, "upload_date": datetime.now().strftime("%Y-%m-%d")}
+        meta_path = filepath + ".meta.json"
+        with open(meta_path, "w", encoding="utf-8") as mf:
+            json.dump(meta, mf, indent=2, ensure_ascii=False)
+
+        # 4) upload su Drive
+        drive_root_id = os.getenv("DRIVE_FOLDER_ID")
+        if drive_root_id:
+            try:
+                patient_folder_id = ensure_folder(patient_id, drive_root_id)
+                doc_folder_id = ensure_folder(document_type, patient_folder_id)
+                # Upload PDF
+                pdf_meta = upload_to_drive(filepath, doc_folder_id)
+                with open(filepath + ".drive.json", "w", encoding="utf-8") as md:
+                    json.dump(pdf_meta, md, indent=2, ensure_ascii=False)
+                # Upload meta.json
+                meta_drive = upload_to_drive(meta_path, doc_folder_id)
+                with open(meta_path + ".drive.json", "w", encoding="utf-8") as md:
+                    json.dump(meta_drive, md, indent=2, ensure_ascii=False)
+            except Exception as e:
+                logging.warning(f"Drive upload fallito per {filepath}: {e}")
+
+        return filepath
+      
         # 3) upload su Drive
         drive_meta: dict | None = None
         drive_id = os.getenv("DRIVE_FOLDER_ID")
@@ -54,14 +91,37 @@ class FileManager:
         os.makedirs(document_folder, exist_ok=True)
         output_path = os.path.join(document_folder, "entities.json")
         entities_obj = self._entities_list_to_dict(entities)
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(entities_obj, f, indent=2, ensure_ascii=False)
+
+        drive_root_id = os.getenv("DRIVE_FOLDER_ID")
+        if drive_root_id:
+            try:
+                patient_folder_id = ensure_folder(patient_id, drive_root_id)
+                doc_folder_id = ensure_folder(document_type, patient_folder_id)
+                drive_meta = upload_to_drive(output_path, doc_folder_id)
+                with open(output_path + ".drive.json", "w", encoding="utf-8") as md:
+                    json.dump(drive_meta, md, indent=2, ensure_ascii=False)
+            except Exception as e:
+                logging.warning(f"Drive upload fallito per {output_path}: {e}")
 
     def read_existing_entities(self, patient_id: str, document_type: str):
         json_path = os.path.join(self.UPLOAD_FOLDER, patient_id, document_type, "entities.json")
         if os.path.exists(json_path):
-            with open(json_path) as f:
-                return json.load(f) 
+            with open(json_path, encoding="utf-8") as f:
+                return json.load(f)
+
+        drive_meta_path = json_path + ".drive.json"
+        if os.path.exists(drive_meta_path):
+            try:
+                with open(drive_meta_path, encoding="utf-8") as df:
+                    meta = json.load(df)
+                    file_id = meta.get("id")
+                if file_id:
+                    content = download_from_drive(file_id)
+                    return json.loads(content.decode("utf-8"))
+            except Exception as e:
+                logging.warning(f"Impossibile leggere entities da Drive: {e}")
         return []
 
     def list_existing_patients(self):
@@ -167,6 +227,16 @@ class FileManager:
                                 status = "processed"
                         except Exception:
                             pass
+                    drive_meta_path = os.path.join(doc_type_path, file + ".drive.json")
+                    drive_id = drive_link = None
+                    if os.path.exists(drive_meta_path):
+                        try:
+                            with open(drive_meta_path) as dm:
+                                dmeta = json.load(dm)
+                                drive_id = dmeta.get("id")
+                                drive_link = dmeta.get("webViewLink")
+                        except Exception:
+                            pass
                     # id documento: doc_{patient_id}_{doc_type}_{filename senza estensione}
                     doc_id = f"doc_{patient_id}_{doc_type}_{os.path.splitext(filename)[0]}"
                     documents.append({
@@ -175,7 +245,9 @@ class FileManager:
                         "document_type": doc_type,
                         "upload_date": upload_date,
                         "entities_count": entities_count,
-                        "status": status
+                        "status": status,
+                        "drive_id": drive_id,
+                        "drive_link": drive_link,
                     })
         return {
             "id": patient_id,
@@ -236,30 +308,52 @@ class FileManager:
         if not pdf_file:
             return None
 
-        pdf_path = f"/uploads/{patient_id}/{document_type}/{pdf_file}"
+        drive_meta_path = os.path.join(folder, pdf_file + ".drive.json")
+        drive_id = drive_link = None
+        if os.path.exists(drive_meta_path):
+            try:
+                with open(drive_meta_path) as dm:
+                    dmeta = json.load(dm)
+                    drive_id = dmeta.get("id")
+                    drive_link = dmeta.get("webViewLink")
+            except Exception:
+                pass
 
         # Leggi entities.json
         entities = []
         entities_path = os.path.join(folder, "entities.json")
+        data = None
         if os.path.exists(entities_path):
             with open(entities_path) as f:
                 data = json.load(f)
-                if isinstance(data, dict):
-                    for idx, (k, v) in enumerate(data.items(), 1):
-                        entities.append({
-                            "id": str(idx),
-                            "type": k,
-                            "value": v,
-                            "confidence": 1.0
-                        })
-                elif isinstance(data, list):
-                    for idx, ent in enumerate(data, 1):
-                        entities.append({
-                            "id": str(idx),
-                            "type": ent.get("type") or ent.get("entità") or "",
-                            "value": ent.get("value") or ent.get("valore") or "",
-                            "confidence": ent.get("confidence", 1.0)
-                        })
+        else:
+            drive_epath = entities_path + ".drive.json"
+            if os.path.exists(drive_epath):
+                try:
+                    with open(drive_epath) as df:
+                        dmeta = json.load(df)
+                        file_id = dmeta.get("id")
+                    if file_id:
+                        content = download_from_drive(file_id)
+                        data = json.loads(content.decode("utf-8"))
+                except Exception:
+                    pass
+        if isinstance(data, dict):
+            for idx, (k, v) in enumerate(data.items(), 1):
+                entities.append({
+                    "id": str(idx),
+                    "type": k,
+                    "value": v,
+                    "confidence": 1.0,
+                })
+        elif isinstance(data, list):
+            for idx, ent in enumerate(data, 1):
+                entities.append({
+                    "id": str(idx),
+                    "type": ent.get("type") or ent.get("entità") or "",
+                    "value": ent.get("value") or ent.get("valore") or "",
+                    "confidence": ent.get("confidence", 1.0),
+                })
 
         # Leggi meta.json per recuperare il nome file originale
         filename = pdf_file
@@ -277,8 +371,9 @@ class FileManager:
             "patient_id": patient_id,
             "document_type": document_type,
             "filename": filename,
-            "pdf_path": pdf_path,
-            "entities": entities
+            "drive_id": drive_id,
+            "drive_link": drive_link,
+            "entities": entities,
         }
 
     def update_document_entities(self, document_id, entities):
@@ -327,6 +422,17 @@ class FileManager:
             # Scrive il file
             with open(entities_path, "w", encoding="utf-8") as f:
                 json.dump(entities_obj, f, indent=2, ensure_ascii=False)
+
+            drive_root_id = os.getenv("DRIVE_FOLDER_ID")
+            if drive_root_id:
+                try:
+                    patient_folder_id = ensure_folder(patient_id, drive_root_id)
+                    doc_folder_id = ensure_folder(document_type, patient_folder_id)
+                    drive_meta = upload_to_drive(entities_path, doc_folder_id)
+                    with open(entities_path + ".drive.json", "w", encoding="utf-8") as md:
+                        json.dump(drive_meta, md, indent=2, ensure_ascii=False)
+                except Exception as e:
+                    logging.warning(f"Drive upload fallito per {entities_path}: {e}")
             return True
         except Exception as e:
             logging.exception(f"Errore in update_document_entities: {e}")
