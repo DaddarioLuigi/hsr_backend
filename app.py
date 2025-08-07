@@ -21,8 +21,12 @@ CORS(app, origins=[
 ], supports_credentials=True)
 
 # Cartella per upload
-UPLOAD_FOLDER = "uploads"
+#UPLOAD_FOLDER = "uploads"
+#os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "/tmp/uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 document_controller = DocumentController()
 
