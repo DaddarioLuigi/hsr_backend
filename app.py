@@ -11,7 +11,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 # Abilita CORS per tutte le rotte e supporta le credenziali
-CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
+CORS(app, origins=["https://v0-vercel-frontend-development-weld.vercel.app"], supports_credentials=True)
 
 # Rimuovo eventuali duplicazioni o override inutili
 
@@ -280,4 +280,4 @@ if __name__ == "__main__":
     print("Routes:")
     for rule in app.url_map.iter_rules():
         print(f"{rule.methods} -> {rule}")
-    app.run(port=5050, debug=True)
+    app.run(port=8080, debug=True)
