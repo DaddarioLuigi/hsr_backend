@@ -56,7 +56,7 @@ class DocumentController:
         if all_tables:
             text_to_remove = self.get_text_to_remove(all_tables)
             return self.remove_tables(all_text, text_to_remove)
-        return all_text
+        return all_text 
 
     def extract_from_tables(self, tables: list[list[list[str]]]) -> dict:
         entities: dict[str, str] = {}
