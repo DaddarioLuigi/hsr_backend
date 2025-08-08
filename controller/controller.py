@@ -12,8 +12,8 @@ from utils.table_parser import TableParser
 class DocumentController:
     def __init__(
         self,
-        model_name: str = "openai/gpt-oss-120b",
-        #model_name: str = "deepseek-ai/DeepSeek-V3",
+        #model_name: str = "openai/gpt-oss-120b",
+        model_name: str = "deepseek-ai/DeepSeek-V3",
         upload_folder: str | None = None,
         export_folder: str | None = None,
     ):
