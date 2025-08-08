@@ -14,7 +14,7 @@ class LLMExtractor:
         prompt = self.prompt_manager.get_prompt_for(document_type) + "\n\n" + document_text
         schema = self.prompt_manager.get_schema_for(document_type)
 
-        print(schema)
+        #print(schema)
 
         for sleep_time in [1, 2, 4]:
             try:

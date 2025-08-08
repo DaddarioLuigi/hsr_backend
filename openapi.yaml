@@ -46,7 +46,7 @@ paths:
   /api/upload-document:
     post:
       summary: Caricamento documento PDF
-      description: Carica un file PDF per un paziente e avvia l'elaborazione.
+      description: Carica uno o più file PDF per un paziente e avvia l'elaborazione. Sono accettati solo PDF.
       requestBody:
         required: true
         content:
@@ -70,7 +70,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/UploadResponse'
         '400':
-          description: Parametri mancanti
+          description: Parametri mancanti o formato non supportato (solo PDF)
+        '413':
+          description: Dimensioni upload eccessive
 
   /api/document/{document_id}:
     get:
@@ -122,6 +124,31 @@ paths:
           description: Formato entità non valido
         '500':
           description: Errore durante il salvataggio
+    delete:
+      summary: Cancella un documento
+      description: Cancella il PDF e i file associati. Se il paziente rimane senza documenti, viene rimosso.
+      parameters:
+        - in: path
+          name: document_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Documento cancellato (eventuali cartelle ripulite)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  patient_deleted:
+                    type: boolean
+                  document_type_deleted:
+                    type: boolean
+        '404':
+          description: Documento non trovato
 
   /api/export-excel:
     get:

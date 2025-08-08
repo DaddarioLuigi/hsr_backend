@@ -1,6 +1,6 @@
 import logging
 from flask import Flask, request, jsonify, send_file, abort, redirect
-from werkzeug.utils import secure_filename
+from werkzeug.utils import secure_filename, safe_join
 import os
 from controller.controller import DocumentController
 from flask_cors import CORS
@@ -8,18 +8,15 @@ import io
 import json
 import pdfplumber
 from datetime import datetime
-from utils.drive_uploader import upload_to_drive, drive_service
-from googleapiclient.http import MediaIoBaseDownload
+from threading import Thread
 
 # Configura logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
 
 app = Flask(__name__)
 # Abilita CORS per tutte le rotte e supporta le credenziali
-CORS(app, origins=[
-    "https://v0-vercel-frontend-development-weld.vercel.app",
-    "http://localhost:3000"
-], supports_credentials=True)
+origins = [o.strip() for o in os.getenv("FRONTEND_ORIGINS", "http://localhost:3000,https://v0-vercel-frontend-development-weld.vercel.app").split(",") if o.strip()]
+CORS(app, origins=origins, supports_credentials=True)
 
 EXPORT_FOLDER = os.getenv("EXPORT_FOLDER", "./export")
 UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "./uploads")
@@ -56,6 +53,16 @@ def guess_document_type(filename):
         return "tc_cuore"
     return "altro"
 
+@app.after_request
+def add_security_headers(response):
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    # Evita cache su JSON per prevenire dati stantii sul frontend
+    if response.mimetype == 'application/json':
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
 @app.route("/preview-entities/<patient_id>/<document_type>/<filename>", methods=["GET"])
 def preview_entities(patient_id, document_type, filename):
     log_route("preview_entities")
@@ -83,34 +90,6 @@ def update_entities():
 def export_excel():
     log_route("export_excel")
     path = document_controller.excel_manager.export_excel_file()
-    meta_path = path + ".drive.json"
-    meta = None
-    if os.path.exists(meta_path):
-        with open(meta_path, "r", encoding="utf-8") as f:
-            meta = json.load(f)
-    else:
-        drive_folder = os.getenv("DRIVE_FOLDER_ID")
-        if drive_folder:
-            try:
-                meta = upload_to_drive(path, drive_folder)
-                with open(meta_path, "w", encoding="utf-8") as f:
-                    json.dump(meta, f, indent=2, ensure_ascii=False)
-            except Exception as e:
-                app.logger.warning(f"Upload Excel su Drive fallito: {e}")
-    if request.args.get("download") == "1" and meta and meta.get("id"):
-        try:
-            request_drive = drive_service.files().get_media(fileId=meta["id"])
-            fh = io.BytesIO()
-            downloader = MediaIoBaseDownload(fh, request_drive)
-            done = False
-            while not done:
-                status, done = downloader.next_chunk()
-            fh.seek(0)
-            return send_file(fh, as_attachment=True, download_name="dati_clinici.xlsx")
-        except Exception as e:
-            app.logger.warning(f"Download Excel da Drive fallito: {e}")
-    if meta and meta.get("webViewLink"):
-        return jsonify({"webViewLink": meta["webViewLink"]})
     app.logger.info(f"Excel scritto in: {path}")
     return send_file(path, as_attachment=True, download_name="dati_clinici.xlsx")
 
@@ -156,6 +135,13 @@ def update_document_entities_route(document_id):
         return jsonify({"success": False, "message": "Errore durante il salvataggio"}), 500
     return jsonify({"success": True, "document_id": document_id, "message": "Entità aggiornate con successo."})
 
+@app.route("/api/document/<document_id>", methods=["DELETE"])
+def delete_document(document_id):
+    log_route("delete_document")
+    result = document_controller.delete_document(document_id)
+    status = 200 if result.get("success") else 404
+    return jsonify(result), status
+
 @app.route("/api/upload-document", methods=["POST"])
 def upload_document():
     log_route("upload_document")
@@ -164,6 +150,17 @@ def upload_document():
         app.logger.debug(f"Numero di file ricevuti: {len(files)}")
         if not files:
             return jsonify({"error": "Almeno un file è obbligatorio"}), 400
+        # Limita dimensione totale e tipi: accetta solo PDF
+        max_total_mb = float(os.getenv("MAX_UPLOAD_MB", "25"))
+        total_size = 0
+        for f in files:
+            f.stream.seek(0, os.SEEK_END)
+            total_size += f.stream.tell()
+            f.stream.seek(0)
+            if not f.filename.lower().endswith('.pdf'):
+                return jsonify({"error": "Sono consentiti solo file PDF"}), 400
+        if total_size > max_total_mb * 1024 * 1024:
+            return jsonify({"error": f"Dimensione totale upload supera {max_total_mb}MB"}), 413
 
         user_id = request.form.get("patient_id")
         results = []
@@ -179,56 +176,32 @@ def upload_document():
             file_bytes = stream.getvalue()
             file.stream.seek(0)
 
-            # Estrazione testo
+            # Estrazione testo (se serve in futuro); evitare chiamate LLM sincrone qui
             with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
                 text = "\n".join(p.extract_text() or "" for p in pdf.pages)
             app.logger.debug(f"Testo estratto lunghezza: {len(text)}")
 
-            # LLM per entità
-            response_json_str = document_controller.llm.get_response_from_document(
-                text, document_type, model=document_controller.model_name
-            )
-            app.logger.debug(f"Risposta LLM: {response_json_str}")
-
-            try:
-                extracted = json.loads(response_json_str)
-            except json.JSONDecodeError:
-                app.logger.error("Errore JSONDecode dall'LLM")
-                results.append({"filename": filename, "error": "Errore durante l’analisi del documento"})
-                continue
-
-            if not extracted:
-                app.logger.warning(f"Nessuna entità estratta per: {filename}")
-                results.append({"filename": filename, "error": "Nessuna entità estratta; documento non valido"})
-                continue
-
             # Determina patient_id_final
             if document_type == "lettera_dimissione":
-                stream = io.BytesIO(file_bytes)
-                with pdfplumber.open(stream) as pdf:
-                    text_full = "\n".join(p.extract_text() or "" for p in pdf.pages)
-                try:
-                    resp = document_controller.llm.get_response_from_document(
-                        text_full, document_type, model=document_controller.model_name
-                    )
-                    extracted_json = json.loads(resp)
-                    extracted_id = extracted_json.get("n_cartella")
-                except Exception:
-                    extracted_id = None
-
-                if extracted_id:
-                    if user_id and str(user_id) != str(extracted_id):
-                        results.append({
-                            "filename": filename,
-                            "error": "Patient ID nel documento diverso da quello inserito"
-                        })
-                        continue
-                    patient_id_final = str(extracted_id)
+                # Se l'utente ha fornito un patient_id, usalo direttamente evitando LLM nella richiesta
+                if user_id:
+                    patient_id_final = str(user_id)
                 else:
-                    if not user_id:
+                    # In assenza di patient_id, tenta una singola estrazione LLM per n_cartella
+                    try:
+                        resp = document_controller.llm.get_response_from_document(
+                            text, document_type, model=document_controller.model_name
+                        )
+                        extracted_json = json.loads(resp)
+                        extracted_id = extracted_json.get("n_cartella")
+                    except Exception:
+                        extracted_id = None
+
+                    if extracted_id:
+                        patient_id_final = str(extracted_id)
+                    else:
                         results.append({"filename": filename, "error": "Non è stato trovato il numero di cartella; inserisci patient_id"})
                         continue
-                    patient_id_final = str(user_id)
                 file.stream.seek(0)
             else:
                 if not user_id:
@@ -244,7 +217,7 @@ def upload_document():
                 continue
 
             # Salvataggio su disco e upload su Drive
-            filepath, drive_meta = document_controller.file_manager.save_file(
+            filepath, _ = document_controller.file_manager.save_file(
                 patient_id_final,
                 document_type,
                 filename,
@@ -255,21 +228,19 @@ def upload_document():
             # Lettura anagrafica iniziale
             provided_anagraphic = document_controller.file_manager.read_existing_entities(patient_id_final, "lettera_dimissione") if document_type != "lettera_dimissione" else None
 
-            # Processing async
-            document_controller.process_document_and_entities(
-                filepath, patient_id_final, document_type, provided_anagraphic
-            )
+            # Processing in background per evitare timeout del worker
+            Thread(
+                target=document_controller.process_document_and_entities,
+                args=(filepath, patient_id_final, document_type, provided_anagraphic),
+                daemon=True,
+            ).start()
 
-            drive_id = drive_meta.get("id") if drive_meta else None
-            drive_link = drive_meta.get("webViewLink") if drive_meta else None
             results.append({
                 "document_id": f"doc_{patient_id_final}_{document_type}_{os.path.splitext(filename)[0]}",
                 "patient_id": patient_id_final,
                 "document_type": document_type,
                 "filename": filename,
-                "status": "processing",
-                "drive_id": drive_id,
-                "drive_link": drive_link
+                "status": "processing"
             })
 
         return jsonify(results[0] if len(results) == 1 else results)
@@ -280,29 +251,15 @@ def upload_document():
 @app.route('/uploads/<path:filename>', methods=['GET', 'HEAD'])
 def uploaded_file(filename):
     log_route("uploaded_file")
-    fullpath = os.path.join(app.root_path, 'uploads', filename)
+    try:
+        fullpath = safe_join(UPLOAD_FOLDER, filename)
+    except Exception:
+        abort(400)
+    # Enforce path inside UPLOAD_FOLDER
+    if not os.path.realpath(fullpath).startswith(os.path.realpath(UPLOAD_FOLDER)):
+        abort(403)
     if os.path.isfile(fullpath):
         return send_file(fullpath, conditional=True)
-    meta_path = fullpath + ".drive.json"
-    if os.path.exists(meta_path):
-        try:
-            with open(meta_path, "r", encoding="utf-8") as f:
-                meta = json.load(f)
-            file_id = meta.get("id")
-            link = meta.get("webViewLink")
-            if request.method == "GET" and file_id:
-                req = drive_service.files().get_media(fileId=file_id)
-                fh = io.BytesIO()
-                downloader = MediaIoBaseDownload(fh, req)
-                done = False
-                while not done:
-                    status, done = downloader.next_chunk()
-                fh.seek(0)
-                return send_file(fh, download_name=os.path.basename(filename), conditional=True)
-            if link:
-                return redirect(link)
-        except Exception as e:
-            app.logger.warning(f"Accesso a Drive fallito per {filename}: {e}")
     app.logger.warning(f"File non trovato: {fullpath}")
     abort(404)
 

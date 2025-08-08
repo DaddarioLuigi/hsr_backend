@@ -12,7 +12,8 @@ from utils.table_parser import TableParser
 class DocumentController:
     def __init__(
         self,
-        model_name: str = "deepseek-ai/DeepSeek-V3",
+        model_name: str = "openai/gpt-oss-120b",
+        #model_name: str = "deepseek-ai/DeepSeek-V3",
         upload_folder: str | None = None,
         export_folder: str | None = None,
     ):
@@ -31,6 +32,7 @@ class DocumentController:
         # (opzionale) allinea anche ExcelManager
         if export_folder:
             self.excel_manager.EXPORT_FOLDER = export_folder
+            self.excel_manager.EXPORT_PATH = os.path.join(export_folder, "output.xlsx")
 
     def get_text_to_remove(self, all_tables: list[list[list[str]]]) -> list[str]:
         text_to_remove: list[str] = []
@@ -91,7 +93,7 @@ class DocumentController:
 
         # 3. Richiesta al modello
         response_str = self.llm.get_response_from_document(
-            full_prompt, document_type, model=self.model_name
+            text, document_type, model=self.model_name
         )
 
         # 4. Parsifica risposta
@@ -124,8 +126,8 @@ class DocumentController:
         output_dir = os.path.join(self.file_manager.UPLOAD_FOLDER, patient_id, document_type)
         os.makedirs(output_dir, exist_ok=True)
         output_path = os.path.join(output_dir, "entities.json")
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(entities, f, ensure_ascii=False, indent=2)
+        # usa FileManager per salvare anche su Drive
+        self.file_manager.save_entities_json(patient_id, document_type, entities)
 
         # Aggiorna anche l'Excel dinamico
         self.excel_manager.update_excel(patient_id, document_type, entities)
@@ -161,3 +163,6 @@ class DocumentController:
 
     def get_document_detail(self, document_id: str) -> dict:
         return self.file_manager.get_document_detail(document_id)
+
+    def delete_document(self, document_id: str) -> dict:
+        return self.file_manager.delete_document(document_id)

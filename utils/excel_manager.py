@@ -3,7 +3,6 @@ import logging
 import pandas as pd
 import json
 
-from .drive_uploader import upload_to_drive
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -12,8 +11,7 @@ class ExcelManager:
 
     def __init__(self):
         os.makedirs(self.EXPORT_FOLDER, exist_ok=True)
-        self.EXPORT_PATH = os.path.join(self.EXPORT_FOLDER, "dati_clinici.xlsx")
-        self.DRIVE_META_PATH = self.EXPORT_PATH + ".drive.json"
+        self.EXPORT_PATH = os.path.join(self.EXPORT_FOLDER, "output.xlsx")
 
     @staticmethod
     def normalize_key(key: str) -> str:
@@ -37,7 +35,6 @@ class ExcelManager:
             with pd.ExcelWriter(self.EXPORT_PATH, engine='openpyxl') as writer:
                 # Crea un foglio temporaneo per evitare errori openpyxl
                 pd.DataFrame({"temp": [None]}).to_excel(writer, sheet_name="temp", index=False)
-            self._upload_to_drive()
         logging.info(f"Created new Excel template at {self.EXPORT_PATH}")
 
     def update_excel(self, patient_id: str, document_type: str, estratti: dict):
@@ -90,7 +87,6 @@ class ExcelManager:
         with pd.ExcelWriter(self.EXPORT_PATH, engine='openpyxl') as writer:
             for sname, sdf in all_sheets.items():
                 sdf.to_excel(writer, sheet_name=sname, index=False)
-        self._upload_to_drive()
 
     def build_excel_from_uploads(self, uploads_dir="uploads"):
         """
@@ -131,18 +127,8 @@ class ExcelManager:
                 columns = sorted(doc_keys[tipo_doc])
                 df = pd.DataFrame(rows, columns=columns)
                 df.to_excel(writer, sheet_name=tipo_doc, index=False)
-        self._upload_to_drive()
         print(f"Creato Excel dinamico in {self.EXPORT_PATH}")
 
-    def _upload_to_drive(self):
-        drive_id = os.getenv("DRIVE_EXPORT_FOLDER_ID")
-        if drive_id:
-            try:
-                meta = upload_to_drive(self.EXPORT_PATH, drive_id)
-                with open(self.DRIVE_META_PATH, "w", encoding="utf-8") as md:
-                    json.dump(meta, md, indent=2, ensure_ascii=False)
-            except Exception as e:
-                logging.warning(f"Drive upload failed for {self.EXPORT_PATH}: {e}")
 
     def export_excel_file(self) -> str:
         """

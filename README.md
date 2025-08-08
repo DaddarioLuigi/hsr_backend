@@ -67,6 +67,24 @@ Le cartelle devono essere condivise con l'account del service account.
 - Per testare upload e download file, usa strumenti come Postman o Swagger UI.
 - Il backend salva i PDF e i dati associati nella cartella `uploads/`.
 
+## Persistenza su Railway
+
+Il backend salva i PDF e i dati associati nella cartella `uploads/`.
+Su Railway abilita la persistenza con un Volume:
+
+- Crea un Volume e montalo su `/data`
+- Imposta le variabili d'ambiente del servizio:
+  - `UPLOAD_FOLDER=/data/uploads`
+  - `EXPORT_FOLDER=/data/export`
+
+Opzionali:
+- `MAX_UPLOAD_MB` (default `25`) per limitare la dimensione totale dell'upload
+
+Gli upload accettano solo PDF.
+
+Endpoint per cancellazione documenti:
+- `DELETE /api/document/{document_id}` — elimina il documento; se il paziente rimane senza documenti, rimuove anche la cartella del paziente.
+
 ## Supporto
 
 Per domande tecniche o bug, contatta il maintainer del backend.
