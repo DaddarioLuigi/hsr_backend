@@ -48,28 +48,53 @@ class SectionExtractor:
 
     def extract(self, section_text: str, doc_type: str) -> Dict[str, Any]:
         """
-        Estrae le entità dalla sezione passata.
-
-        Args:
-            section_text: testo (markdown o plain text) della sezione da analizzare
-            doc_type: tipologia documento (es. 'lettera_dimissione', 'intervento', ...)
-
-        Returns:
-            Dict[str, Any]: mappa entità -> valore
+        Estrae le entità dalla sezione. Se il testo è lungo, lo processa a chunk
+        e unisce i risultati riempiendo solo i campi vuoti.
         """
         canonical_type = normalize_doc_type(doc_type)
-
-        # 1) Specifica (elenco entità attese dallo schema)
-        spec = self.prompts.get_spec_for(canonical_type)  # -> {"entities": [...]}
+        spec = self.prompts.get_spec_for(canonical_type)
         explicit_keys = spec["entities"]
 
-        # 2) Chiamata LLM con controlli schema/json (è dentro LLMExtractor)
-        response_str = self.llm.get_response_from_document(
-            section_text, canonical_type, model=self.model_name
-        )
+        # --- CHUNKING DIFENSIVO ---
+        MAX_CHARS = 40000  # ~10k token circa; margine ampio
+        chunks: list[str] = []
+        if len(section_text) <= MAX_CHARS:
+            chunks = [section_text]
+        else:
+            # split per paragrafi e ri-impacchetta
+            parts = section_text.split("\n\n")
+            buf = []
+            size = 0
+            for p in parts:
+                p = p.strip()
+                if not p:
+                    continue
+                if size + len(p) + 2 > MAX_CHARS and buf:
+                    chunks.append("\n\n".join(buf))
+                    buf = [p]
+                    size = len(p)
+                else:
+                    buf.append(p)
+                    size += len(p) + 2
+            if buf:
+                chunks.append("\n\n".join(buf))
 
-        # 3) Parsing robusto dell'output
+        # --- ESECUZIONE E MERGE ---
         extractor = EntityExtractor(explicit_keys)
-        entities = extractor.parse_llm_response(response_str, section_text)
+        merged: Dict[str, Any] = {}
+        for ch in chunks:
+            try:
+                response_str = self.llm.get_response_from_document(
+                    ch, canonical_type, model=self.model_name
+                )
+                ents = extractor.parse_llm_response(response_str, ch)
+                # riempi solo i vuoti
+                for k, v in (ents or {}).items():
+                    if (k not in merged) or (merged[k] in (None, "", [], {})):
+                        merged[k] = v
+            except Exception as e:
+                # continua con i chunk successivi
+                continue
 
-        return entities
+        return merged
+

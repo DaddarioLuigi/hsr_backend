@@ -9,6 +9,9 @@ import json
 import pdfplumber
 from datetime import datetime
 from threading import Thread
+import uuid
+from utils.progress import ProgressStore
+
 
 # Configura logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
@@ -33,6 +36,8 @@ document_controller = DocumentController(
     upload_folder=UPLOAD_FOLDER,
     export_folder=EXPORT_FOLDER
 )
+
+progress_store = ProgressStore(document_controller.file_manager.UPLOAD_FOLDER)
 
 def log_route(route_name):
     app.logger.info(f"Endpoint chiamato: {route_name}")
@@ -262,6 +267,68 @@ def uploaded_file(filename):
         return send_file(fullpath, conditional=True)
     app.logger.warning(f"File non trovato: {fullpath}")
     abort(404)
+
+@app.route("/api/upload-packet-ocr", methods=["POST"])
+def upload_packet_ocr():
+    app.logger.info("Endpoint chiamato: upload_packet_ocr")
+    try:
+        file = request.files.get("file")
+        patient_id = request.form.get("patient_id")  # opzionale
+
+        if not file or not file.filename.lower().endswith(".pdf"):
+            return jsonify({"error": "File PDF obbligatorio"}), 400
+
+        filename = secure_filename(file.filename)
+        pending_id = patient_id or f"_pending_{uuid.uuid4().hex}"
+
+        filepath, _ = document_controller.file_manager.save_file(
+            pending_id, "packet_ocr", filename, file
+        )
+
+        Thread(
+            target=document_controller.process_clinical_packet_with_ocr,
+            args=(filepath, pending_id),
+            daemon=True,
+        ).start()
+
+        return jsonify({"status": "processing", "pending_id": pending_id}), 200
+    except Exception as e:
+        app.logger.exception("Errore in upload_packet_ocr")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/ingest-packet-ocr-sync", methods=["POST"])
+def ingest_packet_ocr_sync():
+    app.logger.info("Endpoint chiamato: ingest_packet_ocr_sync")
+    try:
+        file = request.files.get("file")
+        patient_id = request.form.get("patient_id")  # opzionale
+
+        if not file or not file.filename.lower().endswith(".pdf"):
+            return jsonify({"error": "File PDF obbligatorio"}), 400
+
+        filename = secure_filename(file.filename)
+        pending_id = patient_id or f"_pending_{uuid.uuid4().hex}"
+
+        filepath, _ = document_controller.file_manager.save_file(
+            pending_id, "packet_ocr", filename, file
+        )
+
+        summary = document_controller.process_clinical_packet_with_ocr(filepath, pending_id)
+        return jsonify(summary), 200
+    except Exception as e:
+        app.logger.exception("Errore in ingest_packet_ocr_sync")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/packet-status/<pending_id>", methods=["GET"])
+def packet_status(pending_id):
+    try:
+        data = progress_store.read(pending_id)
+        return jsonify(data), 200
+    except Exception as e:
+        app.logger.exception("Errore in packet_status")
+        return jsonify({"error": str(e)}), 500
+
+
 
 @app.route("/")
 def index():

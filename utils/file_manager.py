@@ -427,3 +427,18 @@ class FileManager:
             logging.warning(f"Impossibile rimuovere cartella paziente {patient_folder}: {e}")
 
         return {"success": True, "patient_deleted": patient_deleted, "document_type_deleted": document_type_deleted}
+
+    def move_patient_folder(self, src_patient_id: str, dst_patient_id: str) -> bool:
+        src = os.path.join(self.UPLOAD_FOLDER, str(src_patient_id))
+        dst = os.path.join(self.UPLOAD_FOLDER, str(dst_patient_id))
+        if not os.path.isdir(src):
+            return False
+        os.makedirs(self.UPLOAD_FOLDER, exist_ok=True)
+        if os.path.exists(dst):
+            # merge: sposta i contenuti singolarmente
+            for name in os.listdir(src):
+                shutil.move(os.path.join(src, name), os.path.join(dst, name))
+            shutil.rmtree(src, ignore_errors=True)
+        else:
+            shutil.move(src, dst)
+        return True

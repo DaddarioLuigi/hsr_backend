@@ -2,6 +2,7 @@
 from pathlib import Path
 from typing import Dict, List, Any
 import os
+import re
 
 # Import lazy: non fallire a import-time se manca il pacchetto
 _MISTRAL_IMPORT_ERROR = None
@@ -52,9 +53,12 @@ class MistralOCR:
         pdf_response = self.client.ocr.process(
             document=doc,
             model="mistral-ocr-latest",
-            include_image_base64=True,
+            include_image_base64=False,
         )
         return pdf_response
+
+_IMG_MD_RE = re.compile(r'!\[[^\]]*\]\([^)]+\)')  # ![alt](...)
+_DATAURI_RE = re.compile(r'data:image/[^;]+;base64,[A-Za-z0-9+/=\s]+')
 
 
 def replace_images_in_markdown(markdown_str: str, images_dict: Dict[str, str]) -> str:
@@ -63,6 +67,25 @@ def replace_images_in_markdown(markdown_str: str, images_dict: Dict[str, str]) -
             f"![{img_name}]({img_name})", f"![{img_name}]({base64_str})"
         )
     return markdown_str
+
+
+def _strip_markdown_images(md: str) -> str:
+    md = _IMG_MD_RE.sub('', md)
+    md = _DATAURI_RE.sub('', md)
+    return md
+
+def ocr_response_to_markdown(ocr_response) -> str:
+    pages = getattr(ocr_response, "pages", []) or []
+    md_pages = []
+    for page in pages:
+        # usa text puro se disponibile, altrimenti markdown ripulito
+        txt = getattr(page, "text", None)
+        if txt:
+            md_pages.append(txt)
+        else:
+            page_md = getattr(page, "markdown", "") or ""
+            md_pages.append(_strip_markdown_images(page_md))
+    return "\n\n".join(md_pages)
 
 
 def ocr_response_to_markdown(ocr_response: Any) -> str:
