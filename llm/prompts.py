@@ -129,7 +129,9 @@ class PromptManager:
                 "peso": { "type": "number" },
                 "bmi": { "type": "number" },
                 "bsa": { "type": "number" },
-                "data_esame": { "type": "string", "format": "date" }
+                "data_esame": { "type": "string", "format": "date" },
+                "eco_text": { "type": "string" },         # riassunto referto
+                "parametri": { "type": "string" }        # cattura tabellari non mappati singolarmente
             },
             "required": ["n_cartella", "nome", "cognome"],
             "additionalProperties": True
@@ -185,15 +187,19 @@ class PromptManager:
             "title": "Scheda Intervento Cardiochirurgico",
             "type": "object",
             "properties": {
+                "n_cartella": { "type": "number" },
+                "nome": { "type": "string" },
+                "cognome": { "type": "string" },
+                "data_di_nascita": { "type": "string", "format": "date" },  # (CSV: 'dob')
                 "data_intervento": { "type": "string", "format": "date" },
-                "intervento text": { "type": "string" },
-                "primo operatore": { "type": "string" },
+                "Percorso": { "type": "string" },                           # Chirurgico / Transcatetere
                 "redo": { "type": "boolean" },
                 "cec": { "type": "boolean" },
                 "cannulazionearteriosa": { "type": "string" },
                 "statopaz": { "type": "string" },
                 "cardioplegia": { "type": "string" },
                 "approcciochirurgico": { "type": "string" },
+
                 "entratainsala": { "type": "string", "format": "time" },
                 "iniziointervento": { "type": "string", "format": "time" },
                 "iniziocec": { "type": "string", "format": "time" },
@@ -204,13 +210,98 @@ class PromptManager:
                 "finecec": { "type": "string", "format": "time" },
                 "fineintervento": { "type": "string", "format": "time" },
                 "uscitasala": { "type": "string", "format": "time" },
-                "intervento": { "type": "string" },
-                "protesi": { "type": "string" },
-                "modello": { "type": "string" },
-                "numero": { "type": "number" }
+
+                "primo operatore cognome": { "type": "string" },
+                "primo operatore nome": { "type": "string" },
+
+                "num_interventi": { "type": "number" },
+
+                # Primo intervento dettagliato (aderente al CSV di esempio)
+                "intervento 1": { "type": "string" },
+                "protesi 1": { "type": "string" },          # Biologica/Meccanica/Anello
+                "modello 1": { "type": "string" },
+                "numero 1": { "type": "number" },
+                "eziologia_valvolare 1": { "type": "string" },
+
+                # Testo libero (riassunto verbale operatorio)
+                "intervento text": { "type": "string" }
             },
-            "required": ["data_intervento", "intervento text", "primo operatore"]
-        }
+            "required": ["n_cartella", "nome", "cognome", "data_intervento"]
+        },
+            "anamnesi": {
+        "name": "anamnesi",
+        "title": "Scheda Anamnesi",
+        "type": "object",
+        "properties": {
+            "n_cartella": { "type": "number" },
+            "nome": { "type": "string" },
+            "cognome": { "type": "string" },
+            "data_di_nascita": { "type": "string", "format": "date" },
+
+            "Terapia": { "type": "string" },            # terapia in atto all'ingresso
+            "Allergie": { "type": "string" },           # farmacoallergie/intolleranze
+            "Abitudini": { "type": "string" },          # fumo/alcol/altro se riportati
+            "Comorbidita": { "type": "string" },        # elenco/riassunto comorbidità
+            "esami_all_ingresso": { "type": "string" }, # labs/strumentali all'ingresso
+            "parametri": { "type": "string" }           # key:value; key:value; da tabelle/elenco
+        },
+        "required": ["n_cartella", "nome", "cognome"],
+        "additionalProperties": True
+    },
+        "epicrisi_ti": {
+        "name": "epicrisi_ti",
+        "title": "Epicrisi Terapia Intensiva",
+        "type": "object",
+        "properties": {
+            "n_cartella": { "type": "number" },
+            "nome": { "type": "string" },
+            "cognome": { "type": "string" },
+            "data_intervento": { "type": "string", "format": "date" },
+            "Decorso_post_operatorio": { "type": "string" },   # ventilazione, emodinamica, complicanze, etc.
+            "IABP_ECMO_IMPELLA": { "type": "boolean" },
+            "Inotropi": { "type": "boolean" },
+            "eventi_avversi_TI": { "type": "string" },         # lista/riassunto eventi ICU
+            "data_dimissione_cch": { "type": "string", "format": "date" },
+            "parametri": { "type": "string" }                  # tabellari/elenco "chiave: valore; ..."
+        },
+        "required": ["n_cartella", "nome", "cognome"],
+        "additionalProperties": True
+    },
+        "cartellino_anestesiologico": {
+        "name": "cartellino_anestesiologico",
+        "title": "Scheda Anestesiologica Intraoperatoria",
+        "type": "object",
+        "properties": {
+            "n_cartella": { "type": "number" },
+            "nome": { "type": "string" },
+            "cognome": { "type": "string" },
+            "data_di_nascita": { "type": "string", "format": "date" },
+            "data_intervento": { "type": "string", "format": "date" },
+
+            "entratainsala": { "type": "string", "format": "time" },
+            "iniziointervento": { "type": "string", "format": "time" },
+            "iniziocec": { "type": "string", "format": "time" },
+            "inizioclamp": { "type": "string", "format": "time" },
+            "inizioacc": { "type": "string", "format": "time" },
+            "fineacc": { "type": "string", "format": "time" },
+            "fineclamp": { "type": "string", "format": "time" },
+            "finecec": { "type": "string", "format": "time" },
+            "fineintervento": { "type": "string", "format": "time" },
+            "uscitasala": { "type": "string", "format": "time" },
+
+            "cec": { "type": "boolean" },
+            "cardioplegia": { "type": "string" },
+            "approcciochirurgico": { "type": "string" },
+
+            "anestesia": { "type": "string" },            # es. generale, locoregionale (se riportato)
+            "farmaci_intraop": { "type": "string" },      # elenco/riassunto farmaci
+            "eventi_intraop": { "type": "string" },       # eventi/complicanze intraoperatorie
+            "parametri": { "type": "string" }             # tabellari: "chiave: valore; ..."
+        },
+        "required": ["n_cartella", "nome", "cognome", "data_intervento"],
+        "additionalProperties": True
+    }
+
     }
 
     PROMPTS: Dict[str, str] = {
@@ -415,32 +506,24 @@ Esempio di output:
 Sei un medico specializzato in cardiochirurgia.
 Estrai le seguenti entità dall’ecocardiogramma preoperatorio:
 
-- n_cartella (Number)
-- nome (Text)
-- cognome (Text)
-- data_di_nascita (Date)
-- altezza (Number)
-- peso (Number)
-- bmi (Number)
-- bsa (Number)
+- n_cartella (Number), nome (Text), cognome (Text), data_di_nascita (Date)
+- altezza (Number), peso (Number), bmi (Number), bsa (Number)
 - data_esame (Date)
+- eco_text (Text)              # riassunto/valutazione
+- parametri (Text)             # se trovi tabelle/elenco parametri non standard
 
----
-
-**Istruzioni aggiuntive:**
-Se trovi **tabelle**, **elenchi** o **parametri** (es. "Diametro telediastolico: 61 mm", "Frazione di eiezione: 45 %"), estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura).
-
-**Formato di output:**
-Una lista JSON di oggetti `{ "entità": <nome>, "valore": <valore> }`, **niente altro**.
+Istruzioni:
+- Se trovi tabelle/elenco parametri (es. "FE: 45 %", "TAPSE: 17 mm"), estrai ciascuna coppia nel campo **parametri** come testo strutturato "chiave: valore" separati da punto e virgola.
+- Output = lista JSON di {"entità": <nome>, "valore": <valore>}. Nessun altro testo.
 ''',
         "eco_postoperatorio": '''
-Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre **esclusivamente** le seguenti entità dall’ecocardiogramma postoperatorio:
+Sei un medico specializzato in cardiochirurgia. Estrai ESCLUSIVAMENTE:
 
 - data_esame (Date)
 - eco_text (Text)
+- parametri (Text)  # opzionale: se presenti tabelle/elenco parametri
 
-**Formato di output:**
-Lista JSON di oggetti `{ "entità": <nome>, "valore": <valore> }`.
+Output: lista JSON di {"entità": <nome>, "valore": <valore>}. Non inventare.
 ''',
         "tc_cuore": '''
 Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre **esclusivamente** le seguenti entità dal referto di TC Cuore:
@@ -491,49 +574,92 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre **esc
 Nessun commento o testo aggiuntivo.
 ''',
         "intervento": '''
-Sei un medico cardiochirurgo. Il tuo compito è estrarre **esclusivamente** le seguenti entità dal referto di intervento cardiochirurgico:
+Sei un cardiochirurgo. Estrai le seguenti entità dal referto di intervento/verbale operatorio.
 
-### Entità da estrarre:
+Campi anagrafici/cronologia:
+- n_cartella (Number), nome (Text), cognome (Text), data_di_nascita (Date)  [mappa anche “DOB”, “dob”]
+- data_intervento (Date), Percorso (Text: es. "Chirurgico", "Transcatetere")
 
-| Entità                   | Tipo            | Descrizione                                              |
-|-------------------------|-----------------|----------------------------------------------------------|
-| n_cartella              | Number          | Numero identificativo della cartella clinica             |
-| data_intervento         | Date            | Data dell'intervento eseguito                            |
-| intervento text         | Text            | Descrizione completa dell’intervento                     |
-| primo operatore         | Text            | Nome del primo operatore                                 |
-| redo                    | Boolean         | Se l'intervento è un redo (re-intervento)               |
-| cec                     | Boolean         | Uso di circolazione extracorporea (CEC)                 |
-| cannulazionearteriosa   | Text            | Tipo di cannulazione arteriosa utilizzata               |
-| statopaz                | Text            | Stato del paziente al termine dell’intervento          |
-| cardioplegia            | Text            | Tipo di cardioplegia                                     |
-| approcciochirurgico     | Text            | Approccio chirurgico adottato                            |
-| entratainsala           | Time            | Ora di ingresso in sala operatoria                      |
-| iniziointervento        | Time            | Ora di inizio intervento                                 |
-| iniziocec               | Time            | Ora di inizio CEC                                        |
-| inizioclamp             | Time            | Ora di inizio clampaggio                                 |
-| inizioacc               | Time            | Ora di inizio accensione                                 |
-| fineacc                 | Time            | Ora di fine accensione                                   |
-| fineclamp               | Time            | Ora di fine clampaggio                                   |
-| finecec                 | Time            | Ora di fine CEC                                          |
-| fineintervento          | Time            | Ora di fine intervento                                   |
-| uscitasala              | Time            | Ora di uscita dalla sala operatoria                      |
-| intervento              | Text            | Tipo principale di intervento                            |
-| protesi                 | Text            | Tipo di protesi utilizzata                               |
-| modello                 | Text            | Modello della protesi                                    |
-| numero                  | Number          | Numero seriale della protesi                             |
+Setting operatorio:
+- redo (Boolean), cec (Boolean), cannulazionearteriosa (Text), statopaz (Text),
+  cardioplegia (Text), approcciochirurgico (Text)
 
----
+Tempi sala (Time):
+- entratainsala, iniziointervento, iniziocec, inizioclamp, inizioacc,
+  fineacc, fineclamp, finecec, fineintervento, uscitasala
 
-### Istruzioni Importanti:
+Equipe:
+- "primo operatore cognome" (Text), "primo operatore nome" (Text)
 
-- Non estrarre nessuna entità diversa da quelle elencate.
-- Se un’entità non è presente nel documento, non inventarla.
-- Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con due chiavi:
-    - "entità": il nome dell’entità
-    - "valore": il valore estratto
-- Nessuna spiegazione, nessun commento, solo la lista JSON.
+Struttura interventi:
+- num_interventi (Number)
+- "intervento 1" (Text), "protesi 1" (Text), "modello 1" (Text), "numero 1" (Number), "eziologia_valvolare 1" (Text)
 
----
+Testo libero:
+- "intervento text" (Text)  [riassunto completo, se presente]
+
+REGOLE:
+- Output = LISTA JSON di oggetti { "entità": <nome>, "valore": <valore> } — niente altro.
+- Non inventare. Se un campo non è presente, omettilo.
+- Accetta sinonimi comuni (DOB→data_di_nascita; “centrale/periferica” per cannulazionearteriosa).
+- Se sono presenti più interventi ma non strutturati, popola almeno i campi “intervento 1 / protesi 1 / …”.
+''',
+    "anamnesi": '''
+    Sei un medico. Estrai ESCLUSIVAMENTE le seguenti entità dall'ANAMNESI:
+
+    - n_cartella (Number), nome (Text), cognome (Text), data_di_nascita (Date)
+    - Terapia (Text)                 # terapia in atto all'ingresso
+    - Allergie (Text)                # farmacoallergie/intolleranze
+    - Abitudini (Text)               # fumo/alcol/altro, se presenti
+    - Comorbidita (Text)             # elenco o riassunto
+    - esami_all_ingresso (Text)      # labs/strumentali al ricovero
+    - parametri (Text)               # se presenti tabelle/elenco parametri: riportali come "chiave: valore" separati da "; "
+
+    REGOLE:
+    - Output = LISTA JSON di oggetti: { "entità": "<nome>", "valore": "<valore>" } — niente altro.
+    - NON inventare. Se un campo non è presente, omettilo.
+    - Se trovi tabelle/elenco (es. "Creatinina: 1.2 mg/dL", "FE: 45 %"), concatenali in **parametri** senza unità, in forma "Creatinina: 1.2; FE: 45".
+''',
+    "epicrisi_ti": '''
+    Sei un medico. Estrai ESCLUSIVAMENTE le seguenti entità dall’EPICRISI di Terapia Intensiva:
+
+    - n_cartella (Number), nome (Text), cognome (Text)
+    - data_intervento (Date)
+    - Decorso_post_operatorio (Text)        # ventilazione, emodinamica, complicanze, drenaggi, diuresi, etc.
+    - IABP_ECMO_IMPELLA (Boolean), Inotropi (Boolean)
+    - eventi_avversi_TI (Text)
+    - data_dimissione_cch (Date)
+    - parametri (Text)  # se presenti tabelle/elenco parametri, riportali come "chiave: valore" separati da "; "
+
+    REGOLE:
+    - Output = LISTA JSON di oggetti { "entità": "<nome>", "valore": "<valore>" } — niente altro.
+    - NON inventare: ometti i campi assenti.
+    - Se trovi misure/tabellari, normalizzale senza unità in **parametri**.
+''',
+    "cartellino_anestesiologico": '''
+    Sei un anestesista. Estrai ESCLUSIVAMENTE le seguenti entità dalla scheda anestesiologica intraoperatoria:
+
+    Anagrafica/cronologia:
+    - n_cartella (Number), nome (Text), cognome (Text), data_di_nascita (Date)
+    - data_intervento (Date)
+
+    Tempi sala (Time):
+    - entratainsala, iniziointervento, iniziocec, inizioclamp, inizioacc,
+    fineacc, fineclamp, finecec, fineintervento, uscitasala
+
+    Tecnica/setting:
+    - cec (Boolean), cardioplegia (Text), approcciochirurgico (Text)
+
+    Dettagli anestesia:
+    - anestesia (Text), farmaci_intraop (Text), eventi_intraop (Text)
+
+    Tabelle/parametri:
+    - parametri (Text) — se presenti tabelle/elenco, riportali come "chiave: valore" separati da "; " (senza unità).
+
+    REGOLE:
+    - Output = LISTA JSON di oggetti { "entità": "<nome>", "valore": "<valore>" } — niente altro.
+    - NON inventare: ometti i campi non presenti.
+    - Accetta sinonimi per i tempi (es. “incisione”≈iniziointervento) mappandoli al campo corretto.
 '''
     }
 

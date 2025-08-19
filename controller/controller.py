@@ -8,6 +8,7 @@ from utils.file_manager import FileManager
 from utils.entity_extractor import EntityExtractor
 from llm.prompts import PromptManager
 from utils.table_parser import TableParser
+from pipelines.ingestion import ClinicalPacketIngestion
 
 class DocumentController:
     def __init__(
@@ -133,6 +134,19 @@ class DocumentController:
         self.excel_manager.update_excel(patient_id, document_type, entities)
 
         return entities
+
+    def process_clinical_packet_with_ocr(self, pdf_path: str, patient_id: str) -> dict:
+        """
+        OCR Mistral -> segmentazione -> estrazione per tipologia -> cross-doc -> persistenza.
+        Ritorna un riepilogo con sezioni rilevate, tipi processati e mappa globale consolidata.
+        """
+        ingestion = ClinicalPacketIngestion(
+            model_name=getattr(self, "model_name", "deepseek-ai/DeepSeek-V3"),
+            ocr_api_key=getattr(self, "ocr_api_key", None),
+            upload_folder=getattr(self, "upload_folder", None),
+        )
+        return ingestion.ingest_pdf_packet(pdf_path, patient_id)
+
 
     def update_entities_for_document(
         self,
