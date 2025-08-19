@@ -29,6 +29,7 @@ from typing import Dict, Any, List, Optional, Tuple
 
 # --- OCR ---
 try:
+    # --- OCR ---
     from ocr.mistral_ocr import MistralOCR, ocr_response_to_markdown
 except ImportError as e:
     raise ImportError(
