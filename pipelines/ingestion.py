@@ -30,6 +30,8 @@ from uuid import uuid4
 import shutil
 import re
 from utils.progress import ProgressStore
+from llm.prompts import PromptManager
+
 
 # --- OCR ---
 try:
@@ -103,6 +105,8 @@ class ClinicalPacketIngestion:
         self.fm = FileManager()
         self.progress = ProgressStore(self.fm.UPLOAD_FOLDER)
         self.excel = ExcelManager()
+        self.prompts = PromptManager()
+
         # opzionale: override cartella upload (se supportato dal tuo FileManager)
         if upload_folder:
             # se FileManager espone UPLOAD_FOLDER, lo aggiorniamo
