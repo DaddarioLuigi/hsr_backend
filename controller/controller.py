@@ -2,6 +2,7 @@ import os
 import json
 import pdfplumber
 import numpy as np
+import logging
 from llm.extractor import LLMExtractor
 from utils.excel_manager import ExcelManager
 from utils.file_manager import FileManager
@@ -9,6 +10,7 @@ from utils.entity_extractor import EntityExtractor
 from llm.prompts import PromptManager
 from utils.table_parser import TableParser
 from pipelines.ingestion import ClinicalPacketIngestion
+from datetime import datetime
 
 class DocumentController:
     def __init__(
@@ -146,6 +148,332 @@ class DocumentController:
             upload_folder=getattr(self, "upload_folder", None),
         )
         return ingestion.ingest_pdf_packet(pdf_path, patient_id)
+
+    def process_single_document_as_packet(self, filepath: str, patient_id: str, filename: str) -> dict:
+        """
+        Flusso unificato: tratta un singolo PDF come pacchetto clinico da segmentare.
+        Ogni sezione viene gestita come documento indipendente con la stessa struttura
+        dei singoli documenti.
+        
+        Args:
+            filepath: percorso del PDF caricato
+            patient_id: ID paziente (può essere pending)
+            filename: nome originale del file
+            
+        Returns:
+            dict con risultati del processing e sezioni mancanti
+        """
+        from ocr.mistral_ocr import MistralOCR, ocr_response_to_markdown
+        from utils.document_segmenter import find_document_sections
+        from pipelines.router import normalize_doc_type
+        from llm.prompts import PromptManager
+        import re
+        import uuid
+        
+        # Inizializza componenti
+        ocr = MistralOCR()
+        prompts = PromptManager()
+        
+        # Tipi supportati per verificare sezioni mancanti
+        SUPPORTED_TYPES = {
+            "lettera_dimissione", "anamnesi", "epicrisi_ti", "cartellino_anestesiologico",
+            "intervento", "coronarografia", "eco_preoperatorio", "eco_postoperatorio", "tc_cuore"
+        }
+        
+        results = {
+            "patient_id": patient_id,
+            "filename": filename,
+            "sections_found": [],
+            "sections_missing": [],
+            "documents_created": [],
+            "errors": []
+        }
+        
+        try:
+            # 1. OCR del PDF
+            logging.info(f"Avvio OCR per {filename}")
+            
+            # Salva stato iniziale
+            self._save_packet_processing_status(patient_id, {
+                "status": "ocr_start",
+                "message": "OCR in esecuzione",
+                "progress": 10,
+                "filename": filename,
+                "sections_found": [],
+                "sections_missing": [],
+                "documents_created": [],
+                "errors": []
+            })
+            
+            ocr_resp = ocr.process_pdf(filepath)
+            full_md = ocr_response_to_markdown(ocr_resp)
+            
+            # Sanitizzazione del testo
+            def _sanitize_for_llm(txt: str) -> str:
+                s = re.sub(r'!\[[^\]]*\]\([^)]+\)', '', txt or '')  # immagini markdown
+                s = re.sub(r'data:image/[^;]+;base64,[A-Za-z0-9+/=\s]+', '', s)  # data-uri
+                s = re.sub(r'[ \t]+', ' ', s)
+                s = re.sub(r'\n{3,}', '\n\n', s)
+                return s.strip()
+            
+            full_md = _sanitize_for_llm(full_md)
+            
+            if not full_md:
+                results["errors"].append("OCR ha restituito testo vuoto")
+                self._save_packet_processing_status(patient_id, {
+                    "status": "failed",
+                    "message": "OCR ha restituito testo vuoto",
+                    "progress": 100,
+                    "filename": filename,
+                    "errors": results["errors"]
+                })
+                return results
+            
+            # Salva il testo OCR completo come file standalone
+            self._save_ocr_text_file(patient_id, filename, full_md)
+            
+            # 2. Segmentazione
+            logging.info(f"Avvio segmentazione per {filename}")
+            
+            self._save_packet_processing_status(patient_id, {
+                "status": "segmenting",
+                "message": "Segmentazione in corso",
+                "progress": 30,
+                "filename": filename,
+                "sections_found": [],
+                "sections_missing": [],
+                "documents_created": [],
+                "errors": []
+            })
+            
+            sections = find_document_sections(full_md)
+            
+            if not sections:
+                results["errors"].append("Nessuna sezione identificata nel documento")
+                self._save_packet_processing_status(patient_id, {
+                    "status": "failed",
+                    "message": "Nessuna sezione identificata nel documento",
+                    "progress": 100,
+                    "filename": filename,
+                    "errors": results["errors"]
+                })
+                return results
+            
+            # 3. Processa ogni sezione come documento indipendente
+            found_types = set()
+            total_sections = len([s for s in sections if s.doc_type != "altro" and s.text.strip()])
+            processed_sections = 0
+            
+            for section in sections:
+                doc_type = normalize_doc_type(section.doc_type)
+                section_text = section.text.strip()
+                
+                if not section_text or doc_type == "altro":
+                    continue
+                    
+                found_types.add(doc_type)
+                results["sections_found"].append(doc_type)
+                processed_sections += 1
+                
+                # Aggiorna stato con progresso
+                progress = 30 + int(60 * processed_sections / max(1, total_sections))
+                self._save_packet_processing_status(patient_id, {
+                    "status": "processing_sections",
+                    "message": f"Elaborazione sezione {processed_sections}/{total_sections}: {doc_type}",
+                    "progress": progress,
+                    "filename": filename,
+                    "sections_found": results["sections_found"],
+                    "sections_missing": [],
+                    "documents_created": results["documents_created"],
+                    "errors": results["errors"]
+                })
+                
+                # Crea struttura cartelle come per singoli documenti
+                section_filename = f"{os.path.splitext(filename)[0]}_{doc_type}.pdf"
+                
+                try:
+                    # Salva sezione come "documento indipendente"
+                    self._save_section_as_document(
+                        patient_id, doc_type, section_filename, 
+                        section_text, filepath
+                    )
+                    
+                    # Estrai entità usando il prompt dedicato
+                    entities = self._extract_entities_for_section(
+                        section_text, doc_type
+                    )
+                    
+                    # Salva entità
+                    self.file_manager.save_entities_json(patient_id, doc_type, entities)
+                    self.excel_manager.update_excel(patient_id, doc_type, entities)
+                    
+                    # Crea document_id per la dashboard
+                    document_id = f"doc_{patient_id}_{doc_type}_{os.path.splitext(section_filename)[0]}"
+                    
+                    results["documents_created"].append({
+                        "document_id": document_id,
+                        "document_type": doc_type,
+                        "filename": section_filename,
+                        "status": "processed",
+                        "entities_count": len(entities) if isinstance(entities, dict) else 0
+                    })
+                    
+                    logging.info(f"Sezione {doc_type} processata con successo")
+                    
+                except Exception as e:
+                    error_msg = f"Errore processing sezione {doc_type}: {str(e)}"
+                    results["errors"].append(error_msg)
+                    logging.error(error_msg)
+            
+            # 4. Identifica sezioni mancanti
+            missing_types = SUPPORTED_TYPES - found_types
+            results["sections_missing"] = list(missing_types)
+            
+            if missing_types:
+                logging.warning(f"Sezioni mancanti per {filename}: {missing_types}")
+            
+            # Salva stato finale
+            final_status = "completed" if not results["errors"] else "completed_with_errors"
+            self._save_packet_processing_status(patient_id, {
+                "status": final_status,
+                "message": f"Elaborazione completata. Sezioni trovate: {len(results['sections_found'])}, mancanti: {len(results['sections_missing'])}",
+                "progress": 100,
+                "filename": filename,
+                "sections_found": results["sections_found"],
+                "sections_missing": results["sections_missing"],
+                "documents_created": results["documents_created"],
+                "errors": results["errors"]
+            })
+            
+            return results
+            
+        except Exception as e:
+            error_msg = f"Errore generale nel processing: {str(e)}"
+            results["errors"].append(error_msg)
+            logging.exception(error_msg)
+            
+            # Salva stato di errore
+            self._save_packet_processing_status(patient_id, {
+                "status": "failed",
+                "message": error_msg,
+                "progress": 100,
+                "filename": filename,
+                "errors": results["errors"]
+            })
+            
+            return results
+    
+    def _save_ocr_text_file(self, patient_id: str, original_filename: str, ocr_text: str):
+        """Salva il testo OCR completo come file standalone."""
+        try:
+            # Crea cartella per il testo OCR
+            ocr_folder = os.path.join(self.upload_folder, patient_id, "ocr_text")
+            os.makedirs(ocr_folder, exist_ok=True)
+            
+            # Nome file per il testo OCR
+            base_name = os.path.splitext(original_filename)[0]
+            ocr_filename = f"{base_name}_ocr_text.txt"
+            ocr_path = os.path.join(ocr_folder, ocr_filename)
+            
+            # Salva il testo
+            with open(ocr_path, "w", encoding="utf-8") as f:
+                f.write(ocr_text)
+            
+            # Salva metadata
+            meta_path = ocr_path + ".meta.json"
+            meta = {
+                "filename": ocr_filename,
+                "original_filename": original_filename,
+                "upload_date": datetime.now().strftime("%Y-%m-%d"),
+                "content_type": "ocr_text"
+            }
+            with open(meta_path, "w", encoding="utf-8") as f:
+                json.dump(meta, f, indent=2, ensure_ascii=False)
+                
+            logging.info(f"Testo OCR salvato in: {ocr_path}")
+            
+        except Exception as e:
+            logging.error(f"Errore salvataggio testo OCR: {e}")
+    
+    def _save_section_as_document(self, patient_id: str, doc_type: str, 
+                                 section_filename: str, section_text: str, 
+                                 original_pdf_path: str):
+        """Salva una sezione come documento indipendente."""
+        try:
+            # Crea cartella per il tipo di documento
+            doc_folder = os.path.join(self.upload_folder, patient_id, doc_type)
+            os.makedirs(doc_folder, exist_ok=True)
+            
+            # Copia il PDF originale nella cartella della sezione
+            pdf_path = os.path.join(doc_folder, section_filename)
+            if os.path.abspath(original_pdf_path) != os.path.abspath(pdf_path):
+                with open(original_pdf_path, "rb") as src, open(pdf_path, "wb") as dst:
+                    dst.write(src.read())
+            
+            # Salva il testo della sezione
+            text_path = os.path.join(doc_folder, f"{os.path.splitext(section_filename)[0]}_section.txt")
+            with open(text_path, "w", encoding="utf-8") as f:
+                f.write(section_text)
+            
+            # Salva metadata
+            meta_path = pdf_path + ".meta.json"
+            meta = {
+                "filename": section_filename,
+                "upload_date": datetime.now().strftime("%Y-%m-%d"),
+                "section_type": doc_type,
+                "original_pdf": os.path.basename(original_pdf_path),
+                "section_text_file": os.path.basename(text_path)
+            }
+            with open(meta_path, "w", encoding="utf-8") as f:
+                json.dump(meta, f, indent=2, ensure_ascii=False)
+                
+            logging.info(f"Sezione {doc_type} salvata come documento in: {pdf_path}")
+            
+        except Exception as e:
+            logging.error(f"Errore salvataggio sezione {doc_type}: {e}")
+            raise
+    
+    def _extract_entities_for_section(self, section_text: str, doc_type: str) -> dict:
+        """Estrae entità da una sezione usando il prompt dedicato."""
+        try:
+            # Verifica che esista lo schema/prompt
+            spec = self.prompt_manager.get_spec_for(doc_type)
+            explicit_keys = spec['entities']
+            
+            # Limita input per LLM
+            MAX_CHARS = 40000
+            if len(section_text) > MAX_CHARS:
+                section_text = section_text[:MAX_CHARS]
+            
+            # Estrazione con LLM
+            response_str = self.llm.get_response_from_document(
+                section_text, doc_type, model=self.model_name
+            )
+            
+            # Parsing della risposta
+            extractor = EntityExtractor(explicit_keys)
+            entities = extractor.parse_llm_response(response_str, section_text)
+            
+            return entities
+            
+        except Exception as e:
+            logging.error(f"Errore estrazione entità per {doc_type}: {e}")
+            return {}
+    
+    def _save_packet_processing_status(self, patient_id: str, status_data: dict):
+        """Salva lo stato del processing del pacchetto."""
+        try:
+            status_folder = os.path.join(self.upload_folder, patient_id, "temp_processing")
+            os.makedirs(status_folder, exist_ok=True)
+            
+            status_path = os.path.join(status_folder, "processing_status.json")
+            with open(status_path, "w", encoding="utf-8") as f:
+                json.dump(status_data, f, indent=2, ensure_ascii=False)
+                
+            logging.info(f"Stato processing salvato in: {status_path}")
+            
+        except Exception as e:
+            logging.error(f"Errore salvataggio stato processing: {e}")
 
 
     def update_entities_for_document(

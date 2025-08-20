@@ -46,7 +46,13 @@ paths:
   /api/upload-document:
     post:
       summary: Caricamento documento PDF
-      description: Carica uno o più file PDF per un paziente e avvia l'elaborazione. Sono accettati solo PDF.
+      description: |
+        Carica uno o più file PDF per un paziente e avvia l'elaborazione. Sono accettati solo PDF.
+        
+        **Nuovo parametro `process_as_packet`**: 
+        - Se `true`, il documento viene trattato come pacchetto clinico completo da segmentare
+        - Ogni sezione identificata viene gestita come documento indipendente
+        - Se `false` (default), usa il flusso originale per singoli documenti
       requestBody:
         required: true
         content:
@@ -59,9 +65,14 @@ paths:
                   format: binary
                 patient_id:
                   type: string
+                  description: ID paziente (opzionale se process_as_packet=true)
+                process_as_packet:
+                  type: string
+                  description: Se "true", tratta il documento come pacchetto clinico da segmentare
+                  enum: ["true", "false"]
+                  default: "false"
               required:
                 - file
-                - patient_id
       responses:
         '200':
           description: Documento caricato
@@ -73,6 +84,48 @@ paths:
           description: Parametri mancanti o formato non supportato (solo PDF)
         '413':
           description: Dimensioni upload eccessive
+
+  /api/document-packet-status/{patient_id}:
+    get:
+      summary: Stato processing pacchetto clinico
+      description: |
+        Ottiene lo stato del processing di un documento trattato come pacchetto clinico.
+        Ritorna informazioni su sezioni trovate, mancanti e documenti creati.
+      parameters:
+        - in: path
+          name: patient_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stato del processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PacketProcessingStatus'
+        '404':
+          description: Nessun documento in processing trovato
+
+  /api/document-ocr-text/{patient_id}:
+    get:
+      summary: Testo OCR estratto
+      description: Ottiene il testo OCR completo estratto dal documento.
+      parameters:
+        - in: path
+          name: patient_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Testo OCR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OCRTextResponse'
+        '404':
+          description: Nessun testo OCR trovato
 
   /api/document/{document_id}:
     get:
@@ -255,6 +308,75 @@ components:
         confidence:
           type: number
           format: float
+
+    PacketProcessingStatus:
+      type: object
+      properties:
+        patient_id:
+          type: string
+        status:
+          type: string
+          enum: [ocr_start, segmenting, processing_sections, completed, completed_with_errors, failed]
+        message:
+          type: string
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        filename:
+          type: string
+        sections_found:
+          type: array
+          items:
+            type: string
+          description: Lista dei tipi di sezione identificati nel documento
+        sections_missing:
+          type: array
+          items:
+            type: string
+          description: Lista dei tipi di sezione attesi ma non trovati
+        documents_created:
+          type: array
+          items:
+            type: object
+            properties:
+              document_id:
+                type: string
+              document_type:
+                type: string
+              filename:
+                type: string
+              status:
+                type: string
+                enum: [processed]
+              entities_count:
+                type: integer
+        errors:
+          type: array
+          items:
+            type: string
+          description: Lista degli errori riscontrati durante il processing
+
+    OCRTextResponse:
+      type: object
+      properties:
+        patient_id:
+          type: string
+        filename:
+          type: string
+        ocr_text:
+          type: string
+          description: Testo completo estratto via OCR
+        metadata:
+          type: object
+          properties:
+            original_filename:
+              type: string
+            upload_date:
+              type: string
+              format: date
+            content_type:
+              type: string
 
     UpdateEntitiesResponse:
       type: object

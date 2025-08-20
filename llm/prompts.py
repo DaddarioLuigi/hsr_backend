@@ -2,10 +2,13 @@
 
 from typing import Dict, List
 
+
 class PromptManager:
     """
     Gestisce schemi JSON e prompt testuali per l'estrazione di entità.
     """
+    UPLOAD_FOLDER = "./uploads"      # Storage locale
+    EXPORT_FOLDER = "./export"       # Excel output
 
     SCHEMAS: Dict[str, dict] = {
         "lettera_dimissione": {
