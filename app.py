@@ -379,6 +379,12 @@ def document_packet_status(patient_id):
             # Leggi lo stato dal file
             with open(status_path, "r", encoding="utf-8") as f:
                 status_info = json.load(f)
+            
+            # Se il patient_id è cambiato durante il processing, aggiorna la risposta
+            if status_info.get("patient_id") != patient_id:
+                status_info["original_patient_id"] = patient_id
+                status_info["final_patient_id"] = status_info.get("patient_id")
+            
             return jsonify(status_info), 200
         
         # Se non esiste il file di stato, cerca nella cartella temp_processing per il file originale

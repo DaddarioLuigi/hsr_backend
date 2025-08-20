@@ -102,9 +102,21 @@ export default function UploadPacketPage() {
         setSectionsMissing(s.sections_missing ?? []);
         setDocumentsCreated(s.documents_created ?? []);
         
+        // Gestisci cambio di patient_id
+        if (s.final_patient_id && s.final_patient_id !== patientId) {
+          setPendingId(s.final_patient_id);
+          // Continua il polling con il nuovo ID
+          clearInterval(pollTimer.current);
+          startPollingUnified(s.final_patient_id);
+          return;
+        }
+        
         if (s.status === "completed" || s.status === "completed_with_errors") {
           clearInterval(pollTimer.current);
           setPercent(100);
+          // Usa il patient_id finale se disponibile
+          const finalId = s.final_patient_id || s.patient_id || patientId;
+          setPendingId(finalId);
           // Non redirect automatico, mostra risultati
         } else if (s.status === "failed") {
           clearInterval(pollTimer.current);
@@ -289,7 +301,11 @@ export default function UploadPacketPage() {
                   </Button>
                   <Button 
                     size="sm"
-                    onClick={() => router.push(`/patient/${pendingId}`)}
+                    onClick={() => {
+                      // Usa l'ID finale se disponibile, altrimenti quello corrente
+                      const finalId = pendingId || patientId;
+                      router.push(`/patient/${finalId}`);
+                    }}
                   >
                     Vai alla Dashboard
                   </Button>

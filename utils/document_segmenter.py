@@ -117,6 +117,7 @@ def _merge_small_or_duplicate(sections: List[Section]) -> List[Section]:
 def find_document_sections(full_md_text: str) -> List[Section]:
     """
     Trova le sezioni del documento basandosi su frasi d'inizio predefinite.
+    Migliorato per identificare meglio i confini e evitare duplicazioni.
 
     Ritorna:
         List[Section] ordinate per 'start'. Se nessun match, ritorna una singola sezione 'altro'.
@@ -131,15 +132,39 @@ def find_document_sections(full_md_text: str) -> List[Section]:
     if not anchors:
         return [Section("altro", 0, len(full_md_text), full_md_text)]
 
-    # 4) costruisci sezioni [start, end)
+    # 4) costruisci sezioni [start, end) con logica migliorata
     sections: List[Section] = []
     for idx, (doc_type, start) in enumerate(anchors):
-        end = anchors[idx + 1][1] if (idx + 1) < len(anchors) else len(full_md_text)
+        # Trova la fine della sezione corrente
+        if idx + 1 < len(anchors):
+            # La fine è l'inizio della prossima sezione
+            end = anchors[idx + 1][1]
+        else:
+            # Ultima sezione: va fino alla fine del testo
+            end = len(full_md_text)
+        
         chunk = full_md_text[start:end].strip()
         if chunk:
-            sections.append(Section(doc_type=doc_type, start=start, end=end, text=chunk))
+            # Verifica che non sia troppo corto (rumore)
+            if len(chunk) >= _MIN_SECTION_CHARS:
+                sections.append(Section(doc_type=doc_type, start=start, end=end, text=chunk))
 
-    # 5) pulizia/merge
+    # 5) pulizia/merge migliorata
     sections = _merge_small_or_duplicate(sections)
-
-    return sections
+    
+    # 6) RIMOZIONE DUPLICATI: assicurati che ogni tipo appaia solo una volta
+    seen_types = set()
+    unique_sections = []
+    
+    for section in sections:
+        if section.doc_type not in seen_types:
+            seen_types.add(section.doc_type)
+            unique_sections.append(section)
+        else:
+            # Se il tipo è già stato visto, unisci il testo alla sezione esistente
+            existing_section = next(s for s in unique_sections if s.doc_type == section.doc_type)
+            # Aggiorna la sezione esistente con il testo aggiuntivo
+            existing_section.text += "\n\n" + section.text
+            existing_section.end = max(existing_section.end, section.end)
+    
+    return unique_sections

@@ -149,6 +149,33 @@ class DocumentController:
         )
         return ingestion.ingest_pdf_packet(pdf_path, patient_id)
 
+    def _extract_patient_id_from_ocr(self, ocr_text: str) -> str | None:
+        """
+        Estrae il numero di cartella clinica dal testo OCR.
+        Cerca pattern comuni per identificare l'ID paziente.
+        """
+        import re
+        
+        # Pattern comuni per numero cartella clinica
+        patterns = [
+            r'numero\s+cartella\s*:?\s*(\d+)',
+            r'cartella\s+n[°º]?\s*:?\s*(\d+)',
+            r'n[°º]?\s*cartella\s*:?\s*(\d+)',
+            r'paziente\s+n[°º]?\s*:?\s*(\d+)',
+            r'id\s+paziente\s*:?\s*(\d+)',
+            r'(\d{4,})',  # Pattern generico per numeri di 4+ cifre
+        ]
+        
+        for pattern in patterns:
+            matches = re.findall(pattern, ocr_text, re.IGNORECASE)
+            if matches:
+                # Prendi il primo match che sembra un numero di cartella
+                for match in matches:
+                    if len(match) >= 4:  # Numero di cartella tipicamente 4+ cifre
+                        return match
+        
+        return None
+
     def process_single_document_as_packet(self, filepath: str, patient_id: str, filename: str) -> dict:
         """
         Flusso unificato: tratta un singolo PDF come pacchetto clinico da segmentare.
@@ -169,6 +196,7 @@ class DocumentController:
         from llm.prompts import PromptManager
         import re
         import uuid
+        import shutil
         
         # Inizializza componenti
         ocr = MistralOCR()
@@ -229,13 +257,24 @@ class DocumentController:
                 })
                 return results
             
+            # 1b. Estrai ID paziente dal testo OCR se non fornito
+            final_patient_id = patient_id
+            if patient_id.startswith("_pending_"):
+                extracted_id = self._extract_patient_id_from_ocr(full_md)
+                if extracted_id:
+                    final_patient_id = extracted_id
+                    results["patient_id"] = extracted_id
+                    logging.info(f"ID paziente estratto dal testo: {extracted_id}")
+                else:
+                    logging.warning("Impossibile estrarre ID paziente dal testo OCR")
+            
             # Salva il testo OCR completo come file standalone
-            self._save_ocr_text_file(patient_id, filename, full_md)
+            self._save_ocr_text_file(final_patient_id, filename, full_md)
             
             # 2. Segmentazione
             logging.info(f"Avvio segmentazione per {filename}")
             
-            self._save_packet_processing_status(patient_id, {
+            self._save_packet_processing_status(final_patient_id, {
                 "status": "segmenting",
                 "message": "Segmentazione in corso",
                 "progress": 30,
@@ -250,7 +289,7 @@ class DocumentController:
             
             if not sections:
                 results["errors"].append("Nessuna sezione identificata nel documento")
-                self._save_packet_processing_status(patient_id, {
+                self._save_packet_processing_status(final_patient_id, {
                     "status": "failed",
                     "message": "Nessuna sezione identificata nel documento",
                     "progress": 100,
@@ -277,7 +316,7 @@ class DocumentController:
                 
                 # Aggiorna stato con progresso
                 progress = 30 + int(60 * processed_sections / max(1, total_sections))
-                self._save_packet_processing_status(patient_id, {
+                self._save_packet_processing_status(final_patient_id, {
                     "status": "processing_sections",
                     "message": f"Elaborazione sezione {processed_sections}/{total_sections}: {doc_type}",
                     "progress": progress,
@@ -294,7 +333,7 @@ class DocumentController:
                 try:
                     # Salva sezione come "documento indipendente"
                     self._save_section_as_document(
-                        patient_id, doc_type, section_filename, 
+                        final_patient_id, doc_type, section_filename, 
                         section_text, filepath
                     )
                     
@@ -304,11 +343,11 @@ class DocumentController:
                     )
                     
                     # Salva entità
-                    self.file_manager.save_entities_json(patient_id, doc_type, entities)
-                    self.excel_manager.update_excel(patient_id, doc_type, entities)
+                    self.file_manager.save_entities_json(final_patient_id, doc_type, entities)
+                    self.excel_manager.update_excel(final_patient_id, doc_type, entities)
                     
                     # Crea document_id per la dashboard
-                    document_id = f"doc_{patient_id}_{doc_type}_{os.path.splitext(section_filename)[0]}"
+                    document_id = f"doc_{final_patient_id}_{doc_type}_{os.path.splitext(section_filename)[0]}"
                     
                     results["documents_created"].append({
                         "document_id": document_id,
@@ -332,9 +371,18 @@ class DocumentController:
             if missing_types:
                 logging.warning(f"Sezioni mancanti per {filename}: {missing_types}")
             
+            # 5. PULIZIA: Rimuovi cartella temp_processing dopo il successo
+            try:
+                temp_folder = os.path.join(self.upload_folder, final_patient_id, "temp_processing")
+                if os.path.exists(temp_folder):
+                    shutil.rmtree(temp_folder)
+                    logging.info(f"Cartella temp_processing rimossa per {final_patient_id}")
+            except Exception as e:
+                logging.warning(f"Errore rimozione temp_processing: {e}")
+            
             # Salva stato finale
             final_status = "completed" if not results["errors"] else "completed_with_errors"
-            self._save_packet_processing_status(patient_id, {
+            self._save_packet_processing_status(final_patient_id, {
                 "status": final_status,
                 "message": f"Elaborazione completata. Sezioni trovate: {len(results['sections_found'])}, mancanti: {len(results['sections_missing'])}",
                 "progress": 100,
@@ -353,7 +401,7 @@ class DocumentController:
             logging.exception(error_msg)
             
             # Salva stato di errore
-            self._save_packet_processing_status(patient_id, {
+            self._save_packet_processing_status(final_patient_id, {
                 "status": "failed",
                 "message": error_msg,
                 "progress": 100,
