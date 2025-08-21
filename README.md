@@ -51,15 +51,15 @@ La documentazione OpenAPI è disponibile nel file [`openapi.yaml`](./openapi.yam
 - `uploads/` — Cartelle e file dei pazienti e documenti
 - `openapi.yaml` — Documentazione OpenAPI
 
-## Configurazione Google Drive
+## Configurazione AWS S3
 
-Variabili d'ambiente per l'integrazione con Google Drive:
+Variabili d'ambiente per l'integrazione con AWS S3:
 
-- `GOOGLE_APPLICATION_CREDENTIALS`: path al file JSON del service account.
-- `DRIVE_FOLDER_ID`: ID della cartella principale per i PDF.
-- `DRIVE_EXPORT_FOLDER_ID`: ID della cartella per i file Excel.
-
-Le cartelle devono essere condivise con l'account del service account.
+- `AWS_ACCESS_KEY_ID`: Access key ID per AWS
+- `AWS_SECRET_ACCESS_KEY`: Secret access key per AWS
+- `AWS_REGION`: Regione AWS (es. us-east-1)
+- `S3_BUCKET_NAME`: Nome del bucket S3 per i file
+- `S3_BUCKET_EXPORT`: Nome del bucket S3 per i file Excel (opzionale)
 
 ## Note per il frontend developer
 

@@ -1,178 +1,152 @@
-# Flusso Unificato per Upload Documenti Clinici
+# Flusso Unificato - Gestione ID Cartella Clinica
 
 ## Panoramica
 
-Il sistema ora supporta un **flusso unificato** che tratta ogni documento PDF come un potenziale pacchetto clinico completo da segmentare automaticamente. Questo garantisce parità di comportamento tra l'upload di singoli documenti e l'upload di cartelle cliniche complete.
+Il sistema ora gestisce in modo unificato l'estrazione e la gestione dell'ID della cartella clinica tra il flusso di caricamento di documenti singoli e il flusso di caricamento di cartelle cliniche complete.
 
-## Workflow
+## Problemi Risolti
 
-### 1. Upload & OCR
-- L'utente carica un PDF contenente l'intera cartella clinica
-- Il testo viene estratto via **OCR Mistral AI** (saltando pdfplumber)
-- Il testo OCR completo viene salvato come file standalone
+### 1. Inconsistenza tra Flussi
+**Problema**: Il flusso unificato (`process_single_document_as_packet`) usava regex per estrarre l'ID della cartella clinica, mentre il flusso singolo usava LLM.
 
-### 2. Segmentazione Automatica
-- Il testo viene suddiviso in sezioni basandosi su frasi d'inizio predefinite
-- Tipi di sezione supportati:
-  - `lettera_dimissione`
-  - `anamnesi`
-  - `epicrisi_ti`
-  - `cartellino_anestesiologico`
-  - `intervento`
-  - `coronarografia`
-  - `eco_preoperatorio`
-  - `eco_postoperatorio`
-  - `tc_cuore`
+**Soluzione**: Entrambi i flussi ora usano LLM per estrarre l'ID dalla lettera di dimissione, garantendo consistenza e affidabilità.
 
-### 3. Trattamento per Sezione
-Ogni sezione identificata viene trattata come documento autonomo:
-- **Creazione cartella**: `uploads/{patient_id}/{doc_type}/`
-- **Salvataggio PDF**: Copia del PDF originale nella cartella della sezione
-- **Salvataggio testo**: Testo della sezione come file `.txt`
-- **Estrazione entità**: Usando il prompt dedicato al tipo di documento
-- **Persistenza**: JSON + Excel come per i singoli documenti
+### 2. Gestione Errori
+**Problema**: Il flusso unificato non gestiva correttamente il caso in cui non c'è lettera di dimissione.
 
-### 4. Dashboard
-- Appare come se l'utente avesse caricato più file separati
-- Ogni sezione è visibile come documento indipendente
-- Stessi stati e artefatti previsti per i singoli documenti
+**Soluzione**: 
+- Se non c'è lettera di dimissione, il sistema restituisce un errore chiaro
+- Se l'LLM non riesce a estrarre l'ID, viene richiesto l'inserimento manuale
+- Messaggi di errore più chiari e informativi
 
-## Utilizzo
+### 3. Fallback e Recovery
+**Problema**: Non c'era modo di recuperare da errori di estrazione ID.
 
-### Attivazione del Flusso Unificato
+**Soluzione**: 
+- Nuovi endpoint per gestire manualmente l'ID
+- Possibilità di riavviare il processing con ID specifico
+- Spostamento automatico delle cartelle quando necessario
 
-Per attivare il nuovo flusso, aggiungi il parametro `process_as_packet=true` all'upload:
+## Modifiche Implementate
 
-```bash
-curl -X POST http://localhost:5000/api/upload-document \
-  -F "file=@cartella_clinica.pdf" \
-  -F "patient_id=12345" \
-  -F "process_as_packet=true"
+### 1. Controller (`controller/controller.py`)
+
+#### `process_single_document_as_packet()`
+- **Estrazione ID con LLM**: Usa la stessa logica del flusso singolo
+- **Controllo lettera di dimissione**: Verifica presenza prima dell'estrazione
+- **Gestione errori robusta**: Messaggi chiari e fallback appropriati
+- **Logging dettagliato**: Tracciamento completo del processo
+
+```python
+# Estrazione automatica dell'ID dalla lettera di dimissione usando LLM
+if lettera_section:
+    resp = self.llm.get_response_from_document(
+        lettera_section.text, "lettera_dimissione", model=self.model_name
+    )
+    extracted_json = json.loads(resp)
+    extracted_id = extracted_json.get("n_cartella")
+    
+    if extracted_id:
+        final_patient_id = str(extracted_id)
+    else:
+        # Richiedi inserimento manuale
+        results["errors"].append("Non è stato trovato il numero di cartella nella lettera di dimissione; inserisci patient_id manualmente")
 ```
 
-### Parametri
+### 2. Pipeline di Ingestion (`pipelines/ingestion.py`)
 
-- `file`: File PDF da caricare (obbligatorio)
-- `patient_id`: ID paziente (opzionale se non specificato viene generato automaticamente)
-- `process_as_packet`: 
-  - `"true"`: Attiva il flusso unificato
-  - `"false"`: Usa il flusso originale (default)
+#### `ingest_pdf_packet()`
+- **Logica unificata**: Stessa priorità di estrazione ID
+- **Fallback intelligente**: Cross-doc resolver come backup
+- **Priorità chiare**: LLM > Cross-doc > Fornito > Temporaneo
 
-## Nuovi Endpoint
+```python
+# PRIORITÀ: LLM estratto > cross-doc > fornito > temporaneo
+final_id_from_cross_doc = _norm_id(global_map.get("n_cartella"))
 
-### 1. Stato Processing Pacchetto
-```bash
-GET /api/document-packet-status/{patient_id}
+if final_id_from_cross_doc and final_id_from_cross_doc != final_id:
+    # Se l'LLM non ha trovato nulla ma il cross-doc sì, usa quello del cross-doc
+    if final_id.startswith("_pending_") or final_id.startswith("_extract_"):
+        final_id = final_id_from_cross_doc
 ```
 
-Risposta:
-```json
-{
-  "patient_id": "12345",
-  "status": "completed",
-  "message": "Elaborazione completata. Sezioni trovate: 5, mancanti: 2",
-  "progress": 100,
-  "filename": "cartella_clinica.pdf",
-  "sections_found": ["lettera_dimissione", "intervento", "coronarografia", "eco_preoperatorio", "eco_postoperatorio"],
-  "sections_missing": ["anamnesi", "epicrisi_ti"],
-  "documents_created": [
-    {
-      "document_id": "doc_12345_lettera_dimissione_cartella_clinica",
-      "document_type": "lettera_dimissione",
-      "filename": "cartella_clinica_lettera_dimissione.pdf",
-      "status": "processed",
-      "entities_count": 45
-    }
-  ],
-  "errors": []
-}
-```
+### 3. API Endpoints (`app.py`)
 
-### 2. Testo OCR Estratto
-```bash
-GET /api/document-ocr-text/{patient_id}
-```
+#### Nuovi Endpoint
 
-Risposta:
-```json
-{
-  "patient_id": "12345",
-  "filename": "cartella_clinica_ocr_text.txt",
-  "ocr_text": "Testo completo estratto via OCR...",
-  "metadata": {
-    "original_filename": "cartella_clinica.pdf",
-    "upload_date": "2024-01-15",
-    "content_type": "ocr_text"
-  }
-}
-```
+**`/api/set-patient-id/{patient_id}` (POST)**
+- Imposta manualmente l'ID della cartella clinica
+- Sposta automaticamente la cartella del paziente
+- Aggiorna i file di stato
 
-## Struttura File Generata
+**`/api/restart-processing/{patient_id}` (POST)**
+- Riavvia il processing con un ID specifico
+- Utile quando il processing automatico fallisce
 
-```
-uploads/
-└── {patient_id}/
-    ├── temp_processing/
-    │   ├── cartella_clinica.pdf
-    │   └── processing_status.json
-    ├── ocr_text/
-    │   ├── cartella_clinica_ocr_text.txt
-    │   └── cartella_clinica_ocr_text.txt.meta.json
-    ├── lettera_dimissione/
-    │   ├── cartella_clinica_lettera_dimissione.pdf
-    │   ├── cartella_clinica_lettera_dimissione_section.txt
-    │   ├── entities.json
-    │   └── cartella_clinica_lettera_dimissione.pdf.meta.json
-    ├── intervento/
-    │   ├── cartella_clinica_intervento.pdf
-    │   ├── cartella_clinica_intervento_section.txt
-    │   ├── entities.json
-    │   └── cartella_clinica_intervento.pdf.meta.json
-    └── ... (altre sezioni)
-```
+#### Endpoint Aggiornati
 
-## Stati del Processing
+**`/api/document-packet-status/{patient_id}` (GET)**
+- Aggiunti warnings quando manca la lettera di dimissione
+- Messaggi più informativi per l'utente
 
-- `ocr_start`: OCR in esecuzione
-- `segmenting`: Segmentazione in corso
-- `processing_sections`: Elaborazione sezioni
-- `completed`: Elaborazione completata con successo
-- `completed_with_errors`: Completata con alcuni errori
-- `failed`: Elaborazione fallita
+**`/api/upload-document` (POST)**
+- Messaggio aggiornato per informare sulla possibile richiesta manuale dell'ID
 
-## Notifiche Sezioni Mancanti
+### 4. Documentazione OpenAPI (`openapi.yaml`)
 
-Il sistema identifica automaticamente le sezioni attese ma non trovate nel documento e le riporta nel campo `sections_missing`. Questo permette all'utente di:
+- Documentazione completa dei nuovi endpoint
+- Schema aggiornato per includere warnings
+- Esempi di utilizzo e gestione errori
 
-1. **Verificare completezza**: Controllare se il documento contiene tutte le sezioni attese
-2. **Identificare problemi**: Capire se ci sono sezioni mancanti o non riconosciute
-3. **Pianificare azioni**: Decidere se caricare documenti aggiuntivi
+## Flusso di Utilizzo
+
+### Scenario 1: Lettera di Dimissione Presente
+1. Carica documento con `process_as_packet=true`
+2. Sistema estrae automaticamente l'ID con LLM
+3. Processing continua normalmente
+4. Risultato: Documento processato con ID corretto
+
+### Scenario 2: Lettera di Dimissione Assente
+1. Carica documento con `process_as_packet=true`
+2. Sistema rileva assenza lettera di dimissione
+3. Processing fallisce con messaggio chiaro
+4. Utente può:
+   - Usare `/api/set-patient-id/{patient_id}` per impostare ID manualmente
+   - Usare `/api/restart-processing/{patient_id}` per riavviare con ID specifico
+
+### Scenario 3: Estrazione LLM Fallisce
+1. Carica documento con `process_as_packet=true`
+2. Sistema trova lettera di dimissione ma LLM non estrae ID
+3. Processing fallisce con messaggio chiaro
+4. Utente può usare gli endpoint di recovery
 
 ## Vantaggi
 
-1. **Consistenza**: Stesso comportamento per singoli documenti e pacchetti
-2. **Automazione**: Segmentazione automatica senza intervento manuale
-3. **Trasparenza**: Visibilità completa su sezioni trovate e mancanti
-4. **Flessibilità**: Supporto per documenti parziali o incompleti
-5. **Tracciabilità**: Salvataggio del testo OCR per audit e debug
+1. **Consistenza**: Entrambi i flussi usano la stessa logica
+2. **Affidabilità**: LLM è più affidabile delle regex
+3. **Recovery**: Possibilità di recuperare da errori
+4. **UX**: Messaggi chiari e azioni concrete per l'utente
+5. **Manutenibilità**: Codice più pulito e logica centralizzata
 
-## Test
+## Compatibilità
 
-Usa il file `test_unified_flow.py` per testare il nuovo flusso:
+- **Backward Compatible**: I flussi esistenti continuano a funzionare
+- **Gradual Rollout**: Le modifiche sono additive
+- **Fallback**: Il sistema mantiene la robustezza con fallback appropriati
 
-```bash
-python test_unified_flow.py
-```
+## Testing
 
-Il test verifica:
-- Upload con `process_as_packet=true`
-- Monitoraggio stato processing
-- Recupero testo OCR
-- Verifica documenti creati nella dashboard
+Per testare le modifiche:
 
-## Note Tecniche
+1. **Test con lettera di dimissione**: Verifica estrazione automatica
+2. **Test senza lettera di dimissione**: Verifica gestione errori
+3. **Test con ID manuale**: Verifica endpoint di recovery
+4. **Test cross-doc**: Verifica fallback con cross-doc resolver
 
-- **OCR Primario**: Il testo OCR è la fonte primaria, saltando pdfplumber
-- **Processing Asincrono**: Tutto il processing avviene in background
-- **Gestione Errori**: Errori per sezione non bloccano il processing delle altre
-- **Compatibilità**: Il flusso originale rimane invariato e disponibile 
+## Monitoraggio
+
+Il sistema ora fornisce:
+- Log dettagliati per ogni fase del processing
+- Stati di progresso aggiornati
+- Messaggi di errore specifici
+- Warnings informativi per l'utente 

@@ -25,7 +25,7 @@ class LLMExtractor:
                         "type": "json_schema",
                         "schema": schema
                     },
-                    temperature=1,
+                    temperature=0.7,
                     top_p=0.2,
                     max_tokens=8192
                 )

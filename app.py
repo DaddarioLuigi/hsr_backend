@@ -11,6 +11,7 @@ from datetime import datetime
 from threading import Thread
 import uuid
 from utils.progress import ProgressStore
+import shutil
 
 
 # Configura logging
@@ -98,6 +99,68 @@ def export_excel():
     app.logger.info(f"Excel scritto in: {path}")
     return send_file(path, as_attachment=True, download_name="dati_clinici.xlsx")
 
+@app.route("/api/coherence-status/<patient_id>", methods=["GET"])
+def get_coherence_status(patient_id):
+    """Ottiene lo stato di coerenza dei metadati per un paziente."""
+    log_route("get_coherence_status")
+    try:
+        status = document_controller.coherence_manager.get_coherence_status(patient_id)
+        return jsonify(status)
+    except Exception as e:
+        app.logger.exception("Errore nel recupero dello stato di coerenza")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/cleanup-temp-files/<patient_id>", methods=["POST"])
+def cleanup_temp_files(patient_id):
+    """Pulisce i file temporanei per un paziente."""
+    log_route("cleanup_temp_files")
+    try:
+        document_type = request.json.get("document_type") if request.json else None
+        document_controller.file_manager.cleanup_temp_files(patient_id, document_type)
+        return jsonify({"success": True, "message": "File temporanei puliti con successo"})
+    except Exception as e:
+        app.logger.exception("Errore nella pulizia dei file temporanei")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/list-volume-files", methods=["GET"])
+def list_volume_files():
+    """Endpoint temporaneo per listare i file nel volume montato"""
+    log_route("list_volume_files")
+    volume_path = "/data/uploads"
+    
+    try:
+        if not os.path.exists(volume_path):
+            return jsonify({
+                "error": f"Volume path {volume_path} does not exist",
+                "current_working_dir": os.getcwd(),
+                "available_dirs": os.listdir("/data") if os.path.exists("/data") else []
+            }), 404
+        
+        files = []
+        for root, dirs, filenames in os.walk(volume_path):
+            for filename in filenames:
+                file_path = os.path.join(root, filename)
+                rel_path = os.path.relpath(file_path, volume_path)
+                file_size = os.path.getsize(file_path)
+                files.append({
+                    "name": filename,
+                    "path": rel_path,
+                    "size": file_size,
+                    "full_path": file_path
+                })
+        
+        return jsonify({
+            "volume_path": volume_path,
+            "total_files": len(files),
+            "files": files
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "volume_path": volume_path
+        }), 500
+
 @app.route("/api/patients", methods=["GET"])
 def get_patients():
     log_route("get_patients")
@@ -158,23 +221,19 @@ def upload_document():
         
         # Nuovo parametro per attivare il flusso unificato
         process_as_packet = request.form.get("process_as_packet", "false").lower() == "true"
-        
-        # Limita dimensione totale e tipi: accetta solo PDF
-        max_total_mb = float(os.getenv("MAX_UPLOAD_MB", "25"))
-        total_size = 0
-        for f in files:
-            f.stream.seek(0, os.SEEK_END)
-            total_size += f.stream.tell()
-            f.stream.seek(0)
-            if not f.filename.lower().endswith('.pdf'):
-                return jsonify({"error": "Sono consentiti solo file PDF"}), 400
-        if total_size > max_total_mb * 1024 * 1024:
-            return jsonify({"error": f"Dimensione totale upload supera {max_total_mb}MB"}), 413
-
         user_id = request.form.get("patient_id")
+        
+        # Validazione della richiesta
+        is_valid, error_message, validated_files = document_controller.validate_upload_request(
+            files, user_id, process_as_packet
+        )
+        
+        if not is_valid:
+            return jsonify({"error": error_message}), 400
+        
         results = []
 
-        for file in files:
+        for file in validated_files:
             filename = secure_filename(file.filename)
             app.logger.info(f"Processo file: {filename}")
             
@@ -182,10 +241,17 @@ def upload_document():
             if process_as_packet:
                 app.logger.info(f"Avvio flusso unificato per {filename}")
                 
-                # Determina patient_id
-                patient_id_final = str(user_id) if user_id else f"_pending_{uuid.uuid4().hex}"
+                # Determina patient_id - usa quello fornito o genera un ID semplice
+                patient_id_final = None
+                if user_id and user_id.strip():
+                    patient_id_final = str(user_id).strip()
+                    app.logger.info(f"Usando patient_id fornito: {patient_id_final}")
+                else:
+                    # Genera un ID semplice senza creare file temporanei
+                    patient_id_final = f"patient_{uuid.uuid4().hex[:8]}"
+                    app.logger.info(f"Generato ID paziente: {patient_id_final}")
                 
-                # Salvataggio temporaneo del file
+                # Salvataggio del file con l'ID finale
                 temp_filepath, _ = document_controller.file_manager.save_file(
                     patient_id_final,
                     "temp_processing",
@@ -204,7 +270,8 @@ def upload_document():
                     "filename": filename,
                     "patient_id": patient_id_final,
                     "status": "processing_as_packet",
-                    "message": "Documento in elaborazione come pacchetto clinico"
+                    "message": "Documento in elaborazione come pacchetto clinico. Se non c'è una lettera di dimissione, potrebbe essere richiesto l'inserimento manuale del numero di cartella.",
+                    "temp_id": False  # Non è più un ID temporaneo
                 })
                 
             else:
@@ -257,7 +324,7 @@ def upload_document():
                     results.append({"filename": filename, "error": f"Esiste già un documento di tipo '{document_type}' per il paziente {patient_id_final}"})
                     continue
 
-                # Salvataggio su disco e upload su Drive
+                # Salvataggio su disco
                 filepath, _ = document_controller.file_manager.save_file(
                     patient_id_final,
                     document_type,
@@ -372,7 +439,17 @@ def document_packet_status(patient_id):
     """
     log_route("document_packet_status")
     try:
-        # Cerca il file di stato del processing
+        # 1. Cerca il file di stato del processing nella cartella principale (formato nuovo)
+        main_status_path = os.path.join(UPLOAD_FOLDER, patient_id, "processing_status.json")
+        
+        if os.path.exists(main_status_path):
+            # Leggi lo stato dal file principale
+            with open(main_status_path, "r", encoding="utf-8") as f:
+                status_info = json.load(f)
+            
+            return jsonify(status_info), 200
+        
+        # 2. Cerca il file di stato del processing (formato nuovo) in temp_processing
         status_path = os.path.join(UPLOAD_FOLDER, patient_id, "temp_processing", "processing_status.json")
         
         if os.path.exists(status_path):
@@ -380,14 +457,39 @@ def document_packet_status(patient_id):
             with open(status_path, "r", encoding="utf-8") as f:
                 status_info = json.load(f)
             
-            # Se il patient_id è cambiato durante il processing, aggiorna la risposta
-            if status_info.get("patient_id") != patient_id:
-                status_info["original_patient_id"] = patient_id
-                status_info["final_patient_id"] = status_info.get("patient_id")
+            # Se il processing è completato, rimuovi i file temporanei per pazienti con ID temporanei
+            if (status_info.get("status") in ["completed", "completed_with_errors", "failed"] and 
+                (patient_id.startswith("_pending_") or patient_id.startswith("_extract_") or 
+                 patient_id.startswith("unknown_") or patient_id.startswith("patient_"))):
+                try:
+                    temp_folder = os.path.join(UPLOAD_FOLDER, patient_id, "temp_processing")
+                    if os.path.exists(temp_folder):
+                        shutil.rmtree(temp_folder)
+                        app.logger.info(f"File temporanei rimossi per {patient_id}")
+                except Exception as e:
+                    app.logger.warning(f"Errore rimozione file temporanei: {e}")
             
             return jsonify(status_info), 200
         
-        # Se non esiste il file di stato, cerca nella cartella temp_processing per il file originale
+        # 3. Fallback: cerca nel formato ProgressStore (compatibilità)
+        progress_store = ProgressStore(UPLOAD_FOLDER)
+        progress_data = progress_store.read(patient_id)
+        
+        if progress_data and progress_data.get("stage") != "unknown":
+            # Converti formato ProgressStore al formato nuovo
+            status_info = {
+                "patient_id": patient_id,
+                "status": progress_data.get("stage", "processing"),
+                "message": progress_data.get("message", ""),
+                "progress": progress_data.get("percent", 0),
+                "sections_found": progress_data.get("extra", {}).get("sections_found", []),
+                "sections_missing": progress_data.get("extra", {}).get("sections_missing", []),
+                "documents_created": progress_data.get("extra", {}).get("documents_created", []),
+                "errors": progress_data.get("extra", {}).get("errors", [])
+            }
+            return jsonify(status_info), 200
+        
+        # 4. Se non esiste il file di stato, cerca nella cartella temp_processing per il file originale
         temp_folder = os.path.join(UPLOAD_FOLDER, patient_id, "temp_processing")
         
         if not os.path.exists(temp_folder):
@@ -436,6 +538,13 @@ def document_packet_status(patient_id):
                        "intervento", "coronarografia", "eco_preoperatorio", "eco_postoperatorio", "tc_cuore"}
         found_sections = set(status_info["sections_found"])
         status_info["sections_missing"] = list(all_sections - found_sections)
+        
+        # Se non c'è lettera di dimissione, aggiungi un warning
+        if "lettera_dimissione" not in found_sections:
+            status_info["warnings"] = [
+                "Nessuna lettera di dimissione trovata nel documento. Il numero di cartella clinica potrebbe non essere stato estratto correttamente.",
+                "Se il processing è bloccato, potrebbe essere necessario inserire manualmente il numero di cartella clinica."
+            ]
         
         return jsonify(status_info), 200
         
@@ -486,6 +595,381 @@ def get_document_ocr_text(patient_id):
     except Exception as e:
         app.logger.exception("Errore in get_document_ocr_text")
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/debug-processing-status/<patient_id>", methods=["GET"])
+def debug_processing_status(patient_id):
+    """
+    Endpoint di debug per vedere tutti i file di stato del processing.
+    """
+    log_route("debug_processing_status")
+    try:
+        debug_info = {
+            "patient_id": patient_id,
+            "upload_folder": UPLOAD_FOLDER,
+            "patient_path": os.path.join(UPLOAD_FOLDER, patient_id),
+            "exists": os.path.exists(os.path.join(UPLOAD_FOLDER, patient_id)),
+            "files": {}
+        }
+        
+        if os.path.exists(os.path.join(UPLOAD_FOLDER, patient_id)):
+            # Cerca tutti i file di stato possibili
+            patient_path = os.path.join(UPLOAD_FOLDER, patient_id)
+            
+            # 1. Formato nuovo (cartella principale)
+            main_status_path = os.path.join(patient_path, "processing_status.json")
+            if os.path.exists(main_status_path):
+                with open(main_status_path, "r", encoding="utf-8") as f:
+                    debug_info["files"]["main_processing_status"] = json.load(f)
+            
+            # 2. Formato nuovo (temp_processing)
+            temp_status_path = os.path.join(patient_path, "temp_processing", "processing_status.json")
+            if os.path.exists(temp_status_path):
+                with open(temp_status_path, "r", encoding="utf-8") as f:
+                    debug_info["files"]["temp_processing_status"] = json.load(f)
+            
+            # 3. Formato ProgressStore (packet_ocr)
+            progress_store = ProgressStore(UPLOAD_FOLDER)
+            progress_data = progress_store.read(patient_id)
+            debug_info["files"]["progress_store_status"] = progress_data
+            
+            # 3. Lista cartelle
+            debug_info["folders"] = []
+            if os.path.exists(patient_path):
+                for item in os.listdir(patient_path):
+                    item_path = os.path.join(patient_path, item)
+                    if os.path.isdir(item_path):
+                        debug_info["folders"].append({
+                            "name": item,
+                            "path": item_path,
+                            "files": os.listdir(item_path) if os.path.exists(item_path) else []
+                        })
+        
+        return jsonify(debug_info), 200
+        
+    except Exception as e:
+        app.logger.exception("Errore in debug_processing_status")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/force-complete-status/<patient_id>", methods=["POST"])
+def force_complete_status(patient_id):
+    """
+    Endpoint per forzare l'aggiornamento dello stato finale quando il processing è completato.
+    Utile quando il frontend non riceve gli aggiornamenti di stato.
+    """
+    log_route("force_complete_status")
+    try:
+        # Cerca documenti creati nelle cartelle dei tipi
+        sections_found = []
+        documents_created = []
+        
+        for doc_type in ["lettera_dimissione", "anamnesi", "epicrisi_ti", "cartellino_anestesiologico",
+                        "intervento", "coronarografia", "eco_preoperatorio", "eco_postoperatorio", "tc_cuore"]:
+            doc_folder = os.path.join(UPLOAD_FOLDER, patient_id, doc_type)
+            if os.path.exists(doc_folder):
+                # Cerca entities.json per verificare se la sezione è stata processata
+                entities_path = os.path.join(doc_folder, "entities.json")
+                if os.path.exists(entities_path):
+                    sections_found.append(doc_type)
+                    
+                    # Cerca PDF nella cartella
+                    pdf_files_in_type = [f for f in os.listdir(doc_folder) if f.lower().endswith('.pdf')]
+                    if pdf_files_in_type:
+                        documents_created.append({
+                            "document_type": doc_type,
+                            "filename": pdf_files_in_type[0],
+                            "status": "processed"
+                        })
+        
+        # Determina sezioni mancanti
+        all_sections = {"lettera_dimissione", "anamnesi", "epicrisi_ti", "cartellino_anestesiologico",
+                       "intervento", "coronarografia", "eco_preoperatorio", "eco_postoperatorio", "tc_cuore"}
+        found_sections = set(sections_found)
+        sections_missing = list(all_sections - found_sections)
+        
+        # Crea stato finale
+        final_status = "completed" if sections_found else "failed"
+        final_message = f"Elaborazione completata. Sezioni trovate: {len(sections_found)}, mancanti: {len(sections_missing)}"
+        
+        status_data = {
+            "patient_id": patient_id,
+            "status": final_status,
+            "message": final_message,
+            "progress": 100,
+            "sections_found": sections_found,
+            "sections_missing": sections_missing,
+            "documents_created": documents_created,
+            "errors": []
+        }
+        
+        # Salva lo stato finale nella cartella principale
+        main_status_path = os.path.join(UPLOAD_FOLDER, patient_id, "processing_status.json")
+        with open(main_status_path, "w", encoding="utf-8") as f:
+            json.dump(status_data, f, indent=2, ensure_ascii=False)
+        
+        app.logger.info(f"Stato finale forzato per {patient_id}: {final_status}")
+        
+        return jsonify(status_data), 200
+        
+    except Exception as e:
+        app.logger.exception("Errore in force_complete_status")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/restart-processing/<patient_id>", methods=["POST"])
+def restart_processing(patient_id):
+    """
+    Endpoint per riavviare il processing di un documento con un ID specifico quando il processing automatico fallisce.
+    """
+    log_route("restart_processing")
+    try:
+        data = request.get_json()
+        new_patient_id = data.get("patient_id")
+        
+        if not new_patient_id or not new_patient_id.strip():
+            return jsonify({"error": "patient_id è obbligatorio"}), 400
+        
+        new_patient_id = str(new_patient_id).strip()
+        
+        # Verifica che il paziente temporaneo esista
+        old_patient_path = os.path.join(UPLOAD_FOLDER, patient_id)
+        if not os.path.exists(old_patient_path):
+            return jsonify({"error": f"Paziente temporaneo {patient_id} non trovato"}), 404
+        
+        # Cerca il file PDF originale nella cartella temp_processing
+        temp_folder = os.path.join(old_patient_path, "temp_processing")
+        if not os.path.exists(temp_folder):
+            return jsonify({"error": "Cartella temp_processing non trovata"}), 404
+        
+        pdf_files = [f for f in os.listdir(temp_folder) if f.lower().endswith('.pdf')]
+        if not pdf_files:
+            return jsonify({"error": "Nessun PDF trovato in temp_processing"}), 404
+        
+        original_filename = pdf_files[0]
+        original_filepath = os.path.join(temp_folder, original_filename)
+        
+        # Verifica che il nuovo ID non esista già (se diverso)
+        if new_patient_id != patient_id:
+            new_patient_path = os.path.join(UPLOAD_FOLDER, new_patient_id)
+            if os.path.exists(new_patient_path):
+                return jsonify({"error": f"Paziente con ID {new_patient_id} esiste già"}), 409
+        
+        # Riavvia il processing con il nuovo ID
+        Thread(
+            target=document_controller.process_single_document_as_packet,
+            args=(original_filepath, new_patient_id, original_filename),
+            daemon=True,
+        ).start()
+        
+        app.logger.info(f"Processing riavviato per {original_filename} con ID {new_patient_id}")
+        
+        return jsonify({
+            "success": True,
+            "old_patient_id": patient_id,
+            "new_patient_id": new_patient_id,
+            "filename": original_filename,
+            "message": f"Processing riavviato con ID {new_patient_id}",
+            "status": "processing_restarted"
+        }), 200
+        
+    except Exception as e:
+        app.logger.exception("Errore in restart_processing")
+        return jsonify({"error": str(e)}), 500
+
+
+
+
+
+@app.route("/api/set-patient-id/<patient_id>", methods=["POST"])
+def set_patient_id(patient_id):
+    """
+    Endpoint per impostare manualmente il numero di cartella clinica quando il processing automatico fallisce.
+    """
+    log_route("set_patient_id")
+    try:
+        data = request.get_json()
+        new_patient_id = data.get("new_patient_id")
+        
+        if not new_patient_id or not new_patient_id.strip():
+            return jsonify({"error": "new_patient_id è obbligatorio"}), 400
+        
+        new_patient_id = str(new_patient_id).strip()
+        
+        # Verifica che il nuovo ID non esista già
+        new_patient_path = os.path.join(UPLOAD_FOLDER, new_patient_id)
+        if os.path.exists(new_patient_path):
+            return jsonify({"error": f"Paziente con ID {new_patient_id} esiste già"}), 409
+        
+        # Verifica che il paziente temporaneo esista
+        old_patient_path = os.path.join(UPLOAD_FOLDER, patient_id)
+        if not os.path.exists(old_patient_path):
+            return jsonify({"error": f"Paziente temporaneo {patient_id} non trovato"}), 404
+        
+        # Sposta la cartella del paziente
+        try:
+            shutil.move(old_patient_path, new_patient_path)
+            app.logger.info(f"Cartella paziente spostata da {patient_id} a {new_patient_id}")
+        except Exception as e:
+            app.logger.error(f"Errore spostamento cartella: {e}")
+            return jsonify({"error": f"Errore spostamento cartella: {str(e)}"}), 500
+        
+        # Se c'è un file di stato, aggiornalo
+        status_path = os.path.join(new_patient_path, "temp_processing", "processing_status.json")
+        main_status_path = os.path.join(new_patient_path, "processing_status.json")
+        
+        # Aggiorna entrambi i file di stato se esistono
+        for status_file_path in [status_path, main_status_path]:
+            if os.path.exists(status_file_path):
+                try:
+                    with open(status_file_path, "r", encoding="utf-8") as f:
+                        status_data = json.load(f)
+                    
+                    status_data["patient_id"] = new_patient_id
+                    status_data["status"] = "completed"
+                    status_data["message"] = f"ID paziente impostato manualmente: {new_patient_id}"
+                    
+                    with open(status_file_path, "w", encoding="utf-8") as f:
+                        json.dump(status_data, f, indent=2, ensure_ascii=False)
+                        
+                    app.logger.info(f"Stato processing aggiornato per {new_patient_id} in {status_file_path}")
+                except Exception as e:
+                    app.logger.warning(f"Errore aggiornamento stato in {status_file_path}: {e}")
+        
+        return jsonify({
+            "success": True,
+            "old_patient_id": patient_id,
+            "new_patient_id": new_patient_id,
+            "message": f"ID paziente aggiornato da {patient_id} a {new_patient_id}"
+        }), 200
+        
+    except Exception as e:
+        app.logger.exception("Errore in set_patient_id")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/document-packet-files/<patient_id>", methods=["GET"])
+def document_packet_files(patient_id):
+    """
+    Endpoint per ottenere informazioni sui file salvati per un pacchetto.
+    """
+    log_route("document_packet_files")
+    try:
+        patient_path = os.path.join(UPLOAD_FOLDER, patient_id)
+        
+        if not os.path.exists(patient_path):
+            return jsonify({"error": "Paziente non trovato"}), 404
+        
+        files_info = {
+            "patient_id": patient_id,
+            "patient_path": patient_path,
+            "folders": {},
+            "ocr_text": None,
+            "processing_status": None
+        }
+        
+        # Cerca cartelle per tipo di documento
+        for doc_type in ["lettera_dimissione", "anamnesi", "epicrisi_ti", "cartellino_anestesiologico",
+                        "intervento", "coronarografia", "eco_preoperatorio", "eco_postoperatorio", "tc_cuore"]:
+            doc_folder = os.path.join(patient_path, doc_type)
+            if os.path.exists(doc_folder):
+                files_info["folders"][doc_type] = {
+                    "path": doc_folder,
+                    "files": []
+                }
+                
+                # Lista file nella cartella
+                for file in os.listdir(doc_folder):
+                    file_path = os.path.join(doc_folder, file)
+                    file_info = {
+                        "name": file,
+                        "path": file_path,
+                        "size": os.path.getsize(file_path) if os.path.isfile(file_path) else 0,
+                        "type": "file" if os.path.isfile(file_path) else "folder"
+                    }
+                    files_info["folders"][doc_type]["files"].append(file_info)
+        
+        # Cerca testo OCR
+        ocr_folder = os.path.join(patient_path, "ocr_text")
+        if os.path.exists(ocr_folder):
+            ocr_files = [f for f in os.listdir(ocr_folder) if f.endswith('.txt')]
+            if ocr_files:
+                files_info["ocr_text"] = {
+                    "folder": ocr_folder,
+                    "files": ocr_files
+                }
+        
+        # Cerca stato processing
+        temp_folder = os.path.join(patient_path, "temp_processing")
+        main_status_path = os.path.join(patient_path, "processing_status.json")
+        
+        # Cerca prima nella cartella principale, poi in temp_processing
+        status_found = False
+        for status_path in [main_status_path, os.path.join(temp_folder, "processing_status.json")]:
+            if os.path.exists(status_path):
+                try:
+                    with open(status_path, 'r', encoding='utf-8') as f:
+                        files_info["processing_status"] = json.load(f)
+                    status_found = True
+                    break
+                except Exception as e:
+                    files_info["processing_status"] = {"error": str(e)}
+                    status_found = True
+                    break
+        
+        if not status_found and os.path.exists(temp_folder):
+            files_info["processing_status"] = {"message": "Cartella temp_processing presente ma nessun file di stato trovato"}
+        
+        return jsonify(files_info), 200
+        
+    except Exception as e:
+        app.logger.exception("Errore in document_packet_files")
+        return jsonify({"error": str(e)}), 500
+
+
+
+@app.route("/api/coherence-status/<patient_id>", methods=["GET"])
+def coherence_status(patient_id):
+    """
+    Endpoint per verificare lo stato di coerenza dei metadati per un paziente.
+    """
+    log_route("coherence_status")
+    try:
+        status = document_controller.coherence_manager.get_coherence_status(patient_id)
+        return jsonify(status), 200
+    except Exception as e:
+        app.logger.exception("Errore in coherence_status")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/check-document-coherence", methods=["POST"])
+def check_document_coherence():
+    """
+    Endpoint per verificare la coerenza di un documento prima del caricamento.
+    """
+    log_route("check_document_coherence")
+    try:
+        data = request.get_json()
+        patient_id = data.get("patient_id")
+        document_type = data.get("document_type")
+        metadata = data.get("metadata")
+        
+        if not all([patient_id, document_type, metadata]):
+            return jsonify({"error": "Parametri mancanti: patient_id, document_type, metadata"}), 400
+        
+        result = document_controller.coherence_manager.check_document_coherence(patient_id, document_type, metadata)
+        
+        return jsonify({
+            "status": result.status,
+            "reason": result.reason,
+            "diff": result.diff,
+            "references": result.references,
+            "incoerenti": result.incoerenti
+        }), 200
+        
+    except Exception as e:
+        app.logger.exception("Errore in check_document_coherence")
+        return jsonify({"error": str(e)}), 500
+
+
 
 
 

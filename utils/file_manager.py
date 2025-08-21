@@ -4,6 +4,7 @@ import shutil
 import re
 import logging
 from datetime import datetime
+from .s3_manager import S3Manager
 
 
 
@@ -13,24 +14,162 @@ class FileManager:
 
     def __init__(self):
         os.makedirs(self.UPLOAD_FOLDER, exist_ok=True)
+        self.s3_manager = S3Manager()
     
+    def cleanup_temp_files(self, patient_id: str, document_type: str = None):
+        """
+        Pulisce i file temporanei per un paziente o un tipo di documento specifico.
+        
+        Args:
+            patient_id: ID del paziente
+            document_type: Tipo di documento specifico (opzionale)
+        """
+        try:
+            if document_type:
+                # Pulisce solo il tipo di documento specifico
+                folder = os.path.join(self.UPLOAD_FOLDER, patient_id, document_type)
+                if os.path.exists(folder):
+                    # Rimuovi solo i file temporanei
+                    for filename in os.listdir(folder):
+                        if filename.startswith("temp_") or filename.endswith(".tmp"):
+                            filepath = os.path.join(folder, filename)
+                            try:
+                                if os.path.isfile(filepath):
+                                    os.remove(filepath)
+                                elif os.path.isdir(filepath):
+                                    shutil.rmtree(filepath)
+                                logging.info(f"Rimosso file temporaneo: {filepath}")
+                            except Exception as e:
+                                logging.warning(f"Errore rimozione file temporaneo {filepath}: {e}")
+            else:
+                # Pulisce tutti i file temporanei del paziente
+                patient_folder = os.path.join(self.UPLOAD_FOLDER, patient_id)
+                if os.path.exists(patient_folder):
+                    for root, dirs, files in os.walk(patient_folder):
+                        # Rimuovi file temporanei
+                        for filename in files:
+                            if filename.startswith("temp_") or filename.endswith(".tmp"):
+                                filepath = os.path.join(root, filename)
+                                try:
+                                    os.remove(filepath)
+                                    logging.info(f"Rimosso file temporaneo: {filepath}")
+                                except Exception as e:
+                                    logging.warning(f"Errore rimozione file temporaneo {filepath}: {e}")
+                        
+                        # Rimuovi cartelle temporanee
+                        for dirname in dirs:
+                            if dirname.startswith("temp_") or dirname == "temp_processing":
+                                dirpath = os.path.join(root, dirname)
+                                try:
+                                    shutil.rmtree(dirpath)
+                                    logging.info(f"Rimossa cartella temporanea: {dirpath}")
+                                except Exception as e:
+                                    logging.warning(f"Errore rimozione cartella temporanea {dirpath}: {e}")
+        except Exception as e:
+            logging.error(f"Errore durante la pulizia dei file temporanei per {patient_id}: {e}")
+
+    def validate_patient_id(self, patient_id: str) -> tuple[bool, str]:
+        """
+        Valida e normalizza un patient_id.
+        
+        Returns:
+            tuple[bool, str]: (is_valid, normalized_id)
+        """
+        if not patient_id:
+            return False, ""
+        
+        # Normalizza il patient_id
+        normalized = str(patient_id).strip()
+        
+        # Rimuovi caratteri non validi (solo numeri e lettere)
+        import re
+        normalized = re.sub(r'[^a-zA-Z0-9]', '', normalized)
+        
+        # Verifica che non sia vuoto dopo la normalizzazione
+        if not normalized:
+            return False, ""
+        
+        # Verifica che non sia un ID temporaneo
+        if (normalized.startswith("pending") or 
+            normalized.startswith("extract") or 
+            normalized.startswith("unknown") or
+            normalized.startswith("temp")):
+            return False, ""
+        
+        return True, normalized
+
     def save_file(self, patient_id: str, document_type: str, filename: str, file_stream) -> tuple[str, dict | None]:
+        # Validazione input
+        if not patient_id or not document_type or not filename or not file_stream:
+            raise ValueError("Tutti i parametri sono obbligatori")
+        
+        # Valida e normalizza patient_id
+        is_valid, normalized_patient_id = self.validate_patient_id(patient_id)
+        if not is_valid:
+            raise ValueError(f"Patient ID non valido: {patient_id}")
+        
+        # Normalizza document_type
+        document_type = str(document_type).strip().lower()
+        if not document_type:
+            raise ValueError("Document type non può essere vuoto")
+        
+        # Normalizza filename
+        filename = str(filename).strip()
+        if not filename:
+            raise ValueError("Filename non può essere vuoto")
+        
         # 1) crea cartella locale
-        folder = os.path.join(self.UPLOAD_FOLDER, patient_id, document_type)
+        folder = os.path.join(self.UPLOAD_FOLDER, normalized_patient_id, document_type)
         os.makedirs(folder, exist_ok=True)
 
         # 2) scrivi su disco
         filepath = os.path.join(folder, filename)
-        with open(filepath, "wb") as f:
-            f.write(file_stream.read())
+        try:
+            with open(filepath, "wb") as f:
+                f.write(file_stream.read())
+        except Exception as e:
+            # Cleanup in caso di errore
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                except:
+                    pass
+            raise Exception(f"Errore nel salvataggio del file: {str(e)}")
 
         # 3) metadati locali
         meta = {"filename": filename, "upload_date": datetime.now().strftime("%Y-%m-%d")}
         meta_path = filepath + ".meta.json"
-        with open(meta_path, "w", encoding="utf-8") as mf:
-            json.dump(meta, mf, indent=2, ensure_ascii=False)
+        try:
+            with open(meta_path, "w", encoding="utf-8") as mf:
+                json.dump(meta, mf, indent=2, ensure_ascii=False)
+        except Exception as e:
+            # Cleanup in caso di errore
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                except:
+                    pass
+            raise Exception(f"Errore nel salvataggio dei metadati: {str(e)}")
 
-        return filepath, None
+        # 4) Upload su S3 (se configurato)
+        s3_result = None
+        if self.s3_manager.s3_client:
+            s3_key = f"patients/{normalized_patient_id}/{document_type}/{filename}"
+            s3_result = self.s3_manager.upload_file(filepath, s3_key)
+            if s3_result.get("success"):
+                # Aggiungi URL S3 ai metadati
+                meta["s3_url"] = s3_result.get("url")
+                meta["s3_key"] = s3_key
+                try:
+                    with open(meta_path, "w", encoding="utf-8") as mf:
+                        json.dump(meta, mf, indent=2, ensure_ascii=False)
+                except Exception as e:
+                    logging.warning(f"Errore nell'aggiornamento dei metadati con URL S3: {e}")
+                logging.info(f"File caricato su S3: {s3_key}")
+            else:
+                logging.warning(f"Errore upload S3: {s3_result.get('error')}")
+
+        return filepath, s3_result
 
     def remove_patient_folder_if_exists(self, patient_id: str):
         folder_path = os.path.join(self.UPLOAD_FOLDER, patient_id)
@@ -53,6 +192,15 @@ class FileManager:
         entities_obj = self._entities_list_to_dict(entities)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(entities_obj, f, indent=2, ensure_ascii=False)
+        
+        # Upload entities.json su S3 (se configurato)
+        if self.s3_manager.s3_client:
+            s3_key = f"patients/{patient_id}/{document_type}/entities.json"
+            s3_result = self.s3_manager.upload_file(output_path, s3_key)
+            if s3_result.get("success"):
+                logging.info(f"Entities JSON caricato su S3: {s3_key}")
+            else:
+                logging.warning(f"Errore upload entities JSON su S3: {s3_result.get('error')}")
 
 
     def read_existing_entities(self, patient_id: str, document_type: str):
@@ -67,6 +215,33 @@ class FileManager:
         patients = []
         if os.path.exists(self.UPLOAD_FOLDER):
             for patient_id in os.listdir(self.UPLOAD_FOLDER):
+                # Filtra pazienti con ID temporanei o pending
+                if (patient_id.startswith("_pending_") or 
+                    patient_id.startswith("_extract_") or 
+                    patient_id.startswith("unknown_")):
+                    continue
+                
+                # Per i pazienti che iniziano con "patient_", verifica se hanno documenti processati
+                if patient_id.startswith("patient_"):
+                    # Controlla se ci sono documenti processati (non solo temp_processing)
+                    patient_path = os.path.join(self.UPLOAD_FOLDER, patient_id)
+                    if not os.path.isdir(patient_path):
+                        continue
+                    
+                    # Cerca documenti processati (cartelle con entities.json)
+                    has_processed_docs = False
+                    for doc_type in os.listdir(patient_path):
+                        doc_type_path = os.path.join(patient_path, doc_type)
+                        if os.path.isdir(doc_type_path) and doc_type != "temp_processing":
+                            entities_path = os.path.join(doc_type_path, "entities.json")
+                            if os.path.exists(entities_path):
+                                has_processed_docs = True
+                                break
+                    
+                    # Se non ci sono documenti processati, salta questo paziente
+                    if not has_processed_docs:
+                        continue
+                    
                 patient_path = os.path.join(self.UPLOAD_FOLDER, patient_id)
                 if os.path.isdir(patient_path):
                     patients.append(patient_id)
@@ -78,6 +253,33 @@ class FileManager:
         patients = []
         if os.path.exists(self.UPLOAD_FOLDER):
             for patient_id in os.listdir(self.UPLOAD_FOLDER):
+                # Filtra pazienti con ID temporanei o pending
+                if (patient_id.startswith("_pending_") or 
+                    patient_id.startswith("_extract_") or 
+                    patient_id.startswith("unknown_")):
+                    continue
+                
+                # Per i pazienti che iniziano con "patient_", verifica se hanno documenti processati
+                if patient_id.startswith("patient_"):
+                    # Controlla se ci sono documenti processati (non solo temp_processing)
+                    patient_path = os.path.join(self.UPLOAD_FOLDER, patient_id)
+                    if not os.path.isdir(patient_path):
+                        continue
+                    
+                    # Cerca documenti processati (cartelle con entities.json)
+                    has_processed_docs = False
+                    for doc_type in os.listdir(patient_path):
+                        doc_type_path = os.path.join(patient_path, doc_type)
+                        if os.path.isdir(doc_type_path) and doc_type != "temp_processing":
+                            entities_path = os.path.join(doc_type_path, "entities.json")
+                            if os.path.exists(entities_path):
+                                has_processed_docs = True
+                                break
+                    
+                    # Se non ci sono documenti processati, salta questo paziente
+                    if not has_processed_docs:
+                        continue
+                    
                 patient_path = os.path.join(self.UPLOAD_FOLDER, patient_id)
                 if not os.path.isdir(patient_path):
                     continue
@@ -166,8 +368,17 @@ class FileManager:
                                     status = "processed"
                             except Exception:
                                 pass
-                        # id documento: doc_{patient_id}_{doc_type}_{filename senza estensione}
-                        doc_id = f"doc_{patient_id}_{doc_type}_{os.path.splitext(filename)[0]}"
+                        
+                        # Costruisci document_id - gestisci documenti del flusso unificato
+                        file_noext = os.path.splitext(filename)[0]
+                        if file_noext.endswith(f"_{doc_type}"):
+                            # Documento del flusso unificato: estrai nome originale
+                            original_filename = file_noext.replace(f"_{doc_type}", "")
+                            doc_id = f"doc_{patient_id}_{doc_type}_{original_filename}"
+                        else:
+                            # Documento singolo: usa il filename così com'è
+                            doc_id = f"doc_{patient_id}_{doc_type}_{file_noext}"
+                        
                         documents.append({
                             "id": doc_id,
                             "filename": filename,
@@ -202,6 +413,9 @@ class FileManager:
         # Lista dei tipi di documenti supportati
         possible_types = [
             "lettera_dimissione",
+            "anamnesi",
+            "epicrisi_ti",
+            "cartellino_anestesiologico",
             "coronarografia",
             "intervento",
             "eco_preoperatorio",
@@ -227,9 +441,23 @@ class FileManager:
         normalized_target = normalize(filename_noext)
         try:
             for f in os.listdir(folder):
-                if f.lower().endswith('.pdf') and normalize(os.path.splitext(f)[0]) == normalized_target:
-                    pdf_file = f
-                    break
+                if f.lower().endswith('.pdf'):
+                    # Per i documenti del flusso unificato, il file è nel formato {original}_{doc_type}.pdf
+                    # Per i documenti singoli, il file è nel formato originale
+                    file_noext = os.path.splitext(f)[0]
+                    
+                    # Controlla se è un documento del flusso unificato
+                    if file_noext.endswith(f"_{document_type}"):
+                        # Estrai il nome originale dal file del flusso unificato
+                        original_name = file_noext.replace(f"_{document_type}", "")
+                        if normalize(original_name) == normalized_target:
+                            pdf_file = f
+                            break
+                    else:
+                        # Documento singolo - confronta direttamente
+                        if normalize(file_noext) == normalized_target:
+                            pdf_file = f
+                            break
         except FileNotFoundError:
             return None
 
@@ -299,6 +527,9 @@ class FileManager:
             patient_id, remainder = parts
             possible_types = [
                 "lettera_dimissione",
+                "anamnesi",
+                "epicrisi_ti",
+                "cartellino_anestesiologico",
                 "coronarografia",
                 "intervento",
                 "eco_preoperatorio",
@@ -343,6 +574,9 @@ class FileManager:
             return {"success": False, "error": "Formato document_id non valido"}
         possible_types = [
             "lettera_dimissione",
+            "anamnesi",
+            "epicrisi_ti",
+            "cartellino_anestesiologico",
             "coronarografia",
             "intervento",
             "eco_preoperatorio",
@@ -369,9 +603,21 @@ class FileManager:
         normalized_target = normalize(filename_noext) if filename_noext else None
         for f in os.listdir(folder):
             if f.lower().endswith('.pdf'):
-                if normalized_target is None or normalize(os.path.splitext(f)[0]) == normalized_target:
-                    target_pdf = f
-                    break
+                file_noext = os.path.splitext(f)[0]
+                
+                # Per i documenti del flusso unificato, il file è nel formato {original}_{doc_type}.pdf
+                # Per i documenti singoli, il file è nel formato originale
+                if file_noext.endswith(f"_{document_type}"):
+                    # Estrai il nome originale dal file del flusso unificato
+                    original_name = file_noext.replace(f"_{document_type}", "")
+                    if normalized_target is None or normalize(original_name) == normalized_target:
+                        target_pdf = f
+                        break
+                else:
+                    # Documento singolo - confronta direttamente
+                    if normalized_target is None or normalize(file_noext) == normalized_target:
+                        target_pdf = f
+                        break
         if not target_pdf:
             return {"success": False, "error": "PDF non trovato"}
 
@@ -397,13 +643,25 @@ class FileManager:
         except Exception as e:
             logging.warning(f"Impossibile rimuovere {entities_path}: {e}")
 
-        # Rimuovi .drive.json residui (se presenti da versioni precedenti)
-        for fname in [pdf_path + ".drive.json", entities_path + ".drive.json", meta_path + ".drive.json"]:
-            try:
-                if os.path.exists(fname):
-                    os.remove(fname)
-            except Exception:
-                pass
+        # Cancella file da S3 (se configurato)
+        if self.s3_manager.s3_client:
+            # Cancella PDF da S3
+            s3_pdf_key = f"patients/{patient_id}/{document_type}/{target_pdf}"
+            s3_result = self.s3_manager.delete_file(s3_pdf_key)
+            if s3_result.get("success"):
+                logging.info(f"PDF rimosso da S3: {s3_pdf_key}")
+            else:
+                logging.warning(f"Errore rimozione PDF da S3: {s3_result.get('error')}")
+            
+            # Cancella entities.json da S3
+            s3_entities_key = f"patients/{patient_id}/{document_type}/entities.json"
+            s3_result = self.s3_manager.delete_file(s3_entities_key)
+            if s3_result.get("success"):
+                logging.info(f"Entities JSON rimosso da S3: {s3_entities_key}")
+            else:
+                logging.warning(f"Errore rimozione entities JSON da S3: {s3_result.get('error')}")
+
+
 
         # Se cartella del document_type è vuota, rimuovila
         document_type_deleted = False

@@ -107,10 +107,72 @@ paths:
         '404':
           description: Nessun documento in processing trovato
 
+  /api/coherence-status/{patient_id}:
+    get:
+      summary: Stato coerenza metadati paziente
+      description: |
+        Verifica lo stato di coerenza dei metadati per un paziente.
+        Ritorna informazioni sulla presenza della lettera di dimissione
+        e sulla coerenza con i documenti esistenti.
+      parameters:
+        - in: path
+          name: patient_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stato della coerenza
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoherenceStatusResponse'
+        '500':
+          description: Errore interno del server
+
+  /api/check-document-coherence:
+    post:
+      summary: Verifica coerenza documento
+      description: |
+        Verifica la coerenza di un documento prima del caricamento.
+        Utile per controllare preventivamente se un documento sarà accettato.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                patient_id:
+                  type: string
+                  description: ID del paziente
+                document_type:
+                  type: string
+                  description: Tipo di documento
+                metadata:
+                  type: object
+                  description: Metadati del documento da verificare
+              required:
+                - patient_id
+                - document_type
+                - metadata
+      responses:
+        '200':
+          description: Risultato della verifica di coerenza
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoherenceCheckResponse'
+        '400':
+          description: Parametri mancanti o non validi
+        '500':
+          description: Errore interno del server
+
+
   /api/document-ocr-text/{patient_id}:
     get:
       summary: Testo OCR estratto
-      description: Ottiene il testo OCR completo estratto dal documento.
+      description: Ottiene il testo OCR salvato per un paziente.
       parameters:
         - in: path
           name: patient_id
@@ -125,7 +187,192 @@ paths:
               schema:
                 $ref: '#/components/schemas/OCRTextResponse'
         '404':
-          description: Nessun testo OCR trovato
+          description: Testo OCR non trovato
+
+  /api/set-patient-id/{patient_id}:
+    post:
+      summary: Imposta manualmente ID paziente
+      description: |
+        Imposta manualmente il numero di cartella clinica quando il processing automatico fallisce.
+        Utile quando non c'è una lettera di dimissione o l'estrazione automatica dell'ID non funziona.
+      parameters:
+        - in: path
+          name: patient_id
+          required: true
+          schema:
+            type: string
+          description: ID temporaneo del paziente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                new_patient_id:
+                  type: string
+                  description: Nuovo numero di cartella clinica
+              required:
+                - new_patient_id
+      responses:
+        '200':
+          description: ID paziente aggiornato
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  old_patient_id:
+                    type: string
+                  new_patient_id:
+                    type: string
+                  message:
+                    type: string
+        '400':
+          description: Parametri mancanti
+        '404':
+          description: Paziente temporaneo non trovato
+        '409':
+          description: Nuovo ID già esistente
+
+  /api/restart-processing/{patient_id}:
+    post:
+      summary: Riavvia processing con ID specifico
+      description: |
+        Riavvia il processing di un documento con un ID specifico quando il processing automatico fallisce.
+        Utile quando si vuole specificare manualmente il numero di cartella clinica.
+      parameters:
+        - in: path
+          name: patient_id
+          required: true
+          schema:
+            type: string
+          description: ID temporaneo del paziente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                patient_id:
+                  type: string
+                  description: Nuovo numero di cartella clinica per il processing
+              required:
+                - patient_id
+      responses:
+        '200':
+          description: Processing riavviato
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  old_patient_id:
+                    type: string
+                  new_patient_id:
+                    type: string
+                  filename:
+                    type: string
+                  message:
+                    type: string
+                  status:
+                    type: string
+        '400':
+          description: Parametri mancanti
+        '404':
+          description: Paziente temporaneo non trovato
+        '409':
+          description: Nuovo ID già esistente
+
+  /api/force-complete-status/{patient_id}:
+    post:
+      summary: Forza aggiornamento stato finale
+      description: |
+        Forza l'aggiornamento dello stato finale quando il processing è completato.
+        Utile quando il frontend non riceve gli aggiornamenti di stato.
+      parameters:
+        - in: path
+          name: patient_id
+          required: true
+          schema:
+            type: string
+          description: ID del paziente
+      responses:
+        '200':
+          description: Stato finale aggiornato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PacketProcessingStatus'
+        '500':
+          description: Errore interno del server
+
+
+  /api/debug-processing-status/{patient_id}:
+    get:
+      summary: Stato debug processing
+      description: Ottiene lo stato di debug per il processing di un paziente.
+      parameters:
+        - in: path
+          name: patient_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stato debug
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  patient_id:
+                    type: string
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  progress:
+                    type: integer
+                    minimum: 0
+                    maximum: 100
+                  filename:
+                    type: string
+                  sections_found:
+                    type: array
+                    items:
+                      type: string
+                  sections_missing:
+                    type: array
+                    items:
+                      type: string
+                  documents_created:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        document_id:
+                          type: string
+                        document_type:
+                          type: string
+                        filename:
+                          type: string
+                        status:
+                          type: string
+                          enum: [processed]
+                        entities_count:
+                          type: integer
+                  errors:
+                    type: array
+                    items:
+                      type: string
+        '404':
+          description: Paziente non trovato
 
   /api/document/{document_id}:
     get:
@@ -356,6 +603,11 @@ components:
           items:
             type: string
           description: Lista degli errori riscontrati durante il processing
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Lista dei warning (es. mancanza lettera di dimissione)
 
     OCRTextResponse:
       type: object
@@ -386,4 +638,81 @@ components:
         document_id:
           type: string
         message:
-          type: string 
+          type: string
+
+    CoherenceStatusResponse:
+      type: object
+      properties:
+        has_lettera_dimissione:
+          type: boolean
+          description: Se esiste una lettera di dimissione per il paziente
+        total_documents:
+          type: integer
+          description: Numero totale di documenti del paziente
+        incoerenti:
+          type: integer
+          description: Numero di documenti incoerenti (solo se has_lettera_dimissione=true)
+        coherence_status:
+          type: string
+          enum: [pending_ld, coherent, incoherent]
+          description: Stato della coerenza
+        incoerenti_details:
+          type: array
+          items:
+            type: object
+            properties:
+              document_type:
+                type: string
+              differences:
+                type: object
+                additionalProperties:
+                  type: object
+                  properties:
+                    atteso:
+                      type: string
+                    trovato:
+                      type: string
+          description: Dettagli dei documenti incoerenti (solo se incoerenti > 0)
+
+    CoherenceCheckResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [accepted, rejected]
+          description: Status della verifica di coerenza
+        reason:
+          type: string
+          description: Motivo dell'accettazione o rifiuto
+        diff:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              atteso:
+                type: string
+              trovato:
+                type: string
+          description: Differenze trovate (solo se status=rejected)
+        references:
+          type: string
+          description: Riferimento alla lettera di dimissione usata per il confronto
+        incoerenti:
+          type: array
+          items:
+            type: object
+            properties:
+              document_type:
+                type: string
+              differences:
+                type: object
+                additionalProperties:
+                  type: object
+                  properties:
+                    atteso:
+                      type: string
+                    trovato:
+                      type: string
+          description: Lista documenti incoerenti (solo per lettera di dimissione)
+
+ 

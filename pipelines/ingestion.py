@@ -45,6 +45,7 @@ except ImportError as e:
 
 # --- Segmentazione ---
 from utils.document_segmenter import find_document_sections, Section
+from utils.advanced_segmenter import AdvancedSegmenter, AdvancedSection
 
 # --- Router LLM + alias normalize ---
 from pipelines.router import SectionExtractor, normalize_doc_type
@@ -63,12 +64,18 @@ try:
 except ImportError:
     from excel_manager import ExcelManager  # fallback al root
 
+# --- Coerenza metadati ---
+try:
+    from utils.metadata_coherence_manager import MetadataCoherenceManager
+except ImportError:
+    from metadata_coherence_manager import MetadataCoherenceManager  # fallback al root
+
 
 # Tipologie riconosciute/persistite
 SUPPORTED_TYPES = {
     "lettera_dimissione",
     "anamnesi",
-    "epicrisi_ti",
+    "epicrisi",
     "cartellino_anestesiologico",
     "intervento",         # canonical (alias: verbale/referto operatorio)
     "coronarografia",
@@ -106,6 +113,8 @@ class ClinicalPacketIngestion:
         self.progress = ProgressStore(self.fm.UPLOAD_FOLDER)
         self.excel = ExcelManager()
         self.prompts = PromptManager()
+        self.coherence_manager = MetadataCoherenceManager(self.fm.UPLOAD_FOLDER)
+
 
         # opzionale: override cartella upload (se supportato dal tuo FileManager)
         if upload_folder:
@@ -176,9 +185,22 @@ class ClinicalPacketIngestion:
     def _persist_entities(self, patient_id: str, doc_type: str, entities: Dict[str, Any]) -> None:
         """
         Persistenza entità per documento:
+        - Verifica coerenza metadati
         - JSON per tipo (via FileManager)
         - aggiornamento Excel (via ExcelManager)
         """
+        # Verifica coerenza dei metadati
+        coherence_result = self.coherence_manager.check_document_coherence(patient_id, doc_type, entities)
+        
+        if coherence_result.status == "rejected":
+            print(f"[ERROR] Coerenza metadati fallita per {doc_type}: {coherence_result.reason}")
+            if coherence_result.diff:
+                print(f"[ERROR] Differenze: {coherence_result.diff}")
+            if coherence_result.incoerenti:
+                print(f"[ERROR] Documenti incoerenti: {coherence_result.incoerenti}")
+            # Non salvare il documento se non è coerente
+            return
+        
         try:
             # Salvataggio JSON (l'implementazione del tuo FileManager gestisce path/folder)
             self.fm.save_entities_json(patient_id, doc_type, entities)
@@ -191,6 +213,8 @@ class ClinicalPacketIngestion:
             self.excel.update_excel(patient_id, doc_type, entities)
         except Exception as e:
             print(f"[WARN] update_excel fallita per {doc_type}: {e}")
+
+
 
     # ----------------------------------------
     # Entry point principale
@@ -258,24 +282,96 @@ class ClinicalPacketIngestion:
             except Exception:
                 pass
 
-            sections: List[Section] = find_document_sections(full_md)
-            normalized_sections: List[Tuple[str, str]] = []
-            for s in (sections or []):
-                doc_type = normalize_doc_type(getattr(s, "doc_type", "") or "altro")
-                text = getattr(s, "text", "") or ""
-                normalized_sections.append((doc_type, text))
+            # Usa il segmenter avanzato migliorato per maggiore robustezza
+            advanced_segmenter = AdvancedSegmenter(model_name=model_name)
+            advanced_sections: List[AdvancedSection] = advanced_segmenter.segment_document(full_md)
+            
+            # Log delle sezioni trovate per debugging
+            print(f"[INFO] Advanced segmenter ha trovato {len(advanced_sections)} sezioni")
+            for section in advanced_sections:
+                print(f"[INFO] Sezione: {section.doc_type} (confidenza: {section.confidence:.2f})")
+            
+            # Fallback al segmenter originale se quello avanzato non trova nulla
+            if not advanced_sections:
+                print(f"[WARN] Advanced segmenter non ha trovato sezioni, fallback al segmenter originale")
+                sections: List[Section] = find_document_sections(full_md)
+                normalized_sections: List[Tuple[str, str]] = []
+                for s in (sections or []):
+                    doc_type = normalize_doc_type(getattr(s, "doc_type", "") or "altro")
+                    text = getattr(s, "text", "") or ""
+                    normalized_sections.append((doc_type, text))
+            else:
+                # Usa i risultati del segmenter avanzato
+                normalized_sections: List[Tuple[str, str]] = []
+                for s in advanced_sections:
+                    doc_type = normalize_doc_type(s.doc_type or "altro")
+                    text = s.text or ""
+                    normalized_sections.append((doc_type, text))
 
             try:
                 self.progress.update(working_id, "segmented", 40, f"Sezioni trovate: {len(normalized_sections)}")
             except Exception:
                 pass
 
+            # 3) ESTRAZIONE ID CARTELLA CLINICA - LOGICA UNIFICATA CON FLUSSO SINGOLO
+            final_id = working_id
+            
+            # Se l'ID fornito non è temporaneo, usalo direttamente
+            if not working_id.startswith("_pending_") and not working_id.startswith("_extract_"):
+                final_id = working_id
+                print(f"[INFO] Usando ID fornito: {final_id}")
+            else:
+                # Estrazione automatica dell'ID dalla lettera di dimissione usando LLM
+                print(f"[INFO] Estrazione numero cartella clinica con LLM...")
+                
+                try:
+                    # Cerca sezione lettera di dimissione
+                    lettera_text = None
+                    for doc_type, text in normalized_sections:
+                        if doc_type == "lettera_dimissione" and text.strip():
+                            lettera_text = text
+                            break
+                    
+                    if lettera_text:
+                        print(f"[INFO] Trovata sezione lettera di dimissione, estrazione con LLM...")
+                        
+                        # Usa LLM per estrarre n_cartella (stessa logica del flusso singolo)
+                        try:
+                            from llm.extractor import LLMExtractor
+                            llm_extractor = LLMExtractor()
+                            
+                            resp = llm_extractor.get_response_from_document(
+                                lettera_text, "lettera_dimissione", model=model_name
+                            )
+                            extracted_json = json.loads(resp)
+                            extracted_id = extracted_json.get("n_cartella")
+                            
+                            if extracted_id:
+                                final_id = str(extracted_id)
+                                print(f"[INFO] Numero cartella clinica estratto con LLM: {final_id}")
+                            else:
+                                print(f"[WARN] LLM non ha trovato n_cartella nella lettera di dimissione")
+                                # Continua con l'ID temporaneo, il cross-doc resolver potrebbe aiutare
+                                
+                        except Exception as e:
+                            print(f"[WARN] Errore estrazione LLM: {e}")
+                            # Continua con l'ID temporaneo
+                    else:
+                        print(f"[WARN] Nessuna lettera di dimissione trovata nel documento")
+                        # Continua con l'ID temporaneo
+                        
+                except Exception as e:
+                    print(f"[WARN] Errore generale estrazione ID: {e}")
+                    # Continua con l'ID temporaneo
+
+
+
             extractable: List[Tuple[str, str]] = [
                 (t, txt) for (t, txt) in normalized_sections
                 if t in SUPPORTED_TYPES and t != "altro" and (txt or "").strip()
             ]
 
-            # 3) Estrazione per sezioni
+            # 4) Estrazione per sezioni
             per_doc_entities: Dict[str, Dict[str, Any]] = {}
             if extractable:
                 total = len(extractable)
@@ -309,7 +405,7 @@ class ClinicalPacketIngestion:
                     current = per_doc_entities.get(canonical_type, {})
                     per_doc_entities[canonical_type] = self._merge_entities_fill_empty(current, ents)
 
-            # 3b) FALLBACK se nulla estratto
+            # 4b) FALLBACK se nulla estratto
             if not per_doc_entities:
                 try:
                     self.progress.update(working_id, "no_sections", 45, "Nessuna sezione riconosciuta, avvio fallback")
@@ -321,7 +417,7 @@ class ClinicalPacketIngestion:
                     "lettera_dimissione",
                     "intervento",
                     "cartellino_anestesiologico",
-                    "epicrisi_ti",
+                    "epicrisi",
                     "eco_preoperatorio",
                     "eco_postoperatorio",
                     "tc_cuore",
@@ -358,7 +454,7 @@ class ClinicalPacketIngestion:
                         print(f"[WARN] fallback estrazione fallita per {t}: {e}")
                         continue
 
-            # 4) Cross-doc
+            # 5) Cross-doc
             try:
                 self.progress.update(working_id, "consolidating", 90, "Consolidamento dati")
             except Exception:
@@ -366,28 +462,35 @@ class ClinicalPacketIngestion:
 
             global_map = build_global_map(per_doc_entities)
 
-            # 5) ID finale e move cartella se necessario
-            final_id = _norm_id(global_map.get("n_cartella")) or _norm_id(patient_id) or working_id
-            if final_id != working_id:
-                try:
-                    if hasattr(self.fm, "move_patient_folder"):
-                        self.fm.move_patient_folder(working_id, final_id)
-                except Exception as e:
-                    print(f"[WARN] Move patient folder {working_id} -> {final_id} fallito: {e}")
+            # 6) ID finale - PRIORITÀ: LLM estratto > cross-doc > fornito > temporaneo
+            final_id_from_cross_doc = _norm_id(global_map.get("n_cartella"))
+            
+            if final_id_from_cross_doc and final_id_from_cross_doc != final_id:
+                print(f"[INFO] Cross-doc resolver ha trovato ID diverso: {final_id_from_cross_doc} vs {final_id}")
+                # Se l'LLM non ha trovato nulla ma il cross-doc sì, usa quello del cross-doc
+                if final_id.startswith("_pending_") or final_id.startswith("_extract_"):
+                    final_id = final_id_from_cross_doc
+                    print(f"[INFO] Usando ID dal cross-doc resolver: {final_id}")
+            
+            # Se ancora non abbiamo un ID valido, usa quello fornito o temporaneo
+            if final_id.startswith("_pending_") or final_id.startswith("_extract_"):
+                final_id = _norm_id(patient_id) or final_id
+                print(f"[INFO] Usando ID finale: {final_id}")
+            
 
-            # 6) Backfill + persistenza
+
+            # 7) Backfill + persistenza
             documents_processed: List[str] = []
             for doc_type, ents in per_doc_entities.items():
                 bf = backfill_entities_for_doc(doc_type, ents, global_map)
-                self._persist_entities(final_id, doc_type, bf)
+                self._persist_entities(working_id, doc_type, bf)
                 documents_processed.append(doc_type)
 
-            # 7) Completed
+            # 8) Completed
             try:
                 self.progress.update(
-                    final_id, "completed", 100, "Elaborazione completata",
+                    working_id, "completed", 100, "Elaborazione completata",
                     extra={
-                        "final_patient_id": final_id,
                         "sections_found": [t for (t, _) in normalized_sections],
                         "documents_processed": documents_processed,
                     }
@@ -396,7 +499,7 @@ class ClinicalPacketIngestion:
                 pass
 
             return {
-                "patient_id": final_id,
+                "patient_id": working_id,
                 "sections_found": [t for (t, _) in normalized_sections],
                 "documents_processed": documents_processed,
                 "global_map": global_map,
