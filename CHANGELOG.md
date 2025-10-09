@@ -1,5 +1,61 @@
 # Changelog - Bug Fixes e Miglioramenti
 
+## 2025-10-09 - Rimozione Flusso Unificato e Pulizia Codice
+
+### 🗑️ Rimozione Flusso Unificato
+
+#### File Rimossi
+- ❌ `pipelines/ingestion.py` - Pipeline completa per il flusso unificato
+- ❌ `pipelines/router.py` - Router per estrazione sezioni
+- ❌ `ocr/mistral_ocr.py` - Wrapper per Mistral OCR
+- ❌ `ocr/__init__.py` - Package OCR
+- ❌ `config/segmentation_config.py` - Configurazioni segmenter avanzato
+- ❌ `config/type_phrases.py` - Pattern regex per identificazione sezioni
+- ❌ `utils/document_segmenter.py` - Segmenter base
+- ❌ `utils/advanced_segmenter.py` - Segmenter avanzato
+- ❌ `utils/adaptive_segmenter.py` - Segmenter adattivo
+- ❌ `utils/cross_doc_resolver.py` - Resolver cross-documento
+- ❌ `utils/llm_segmenter.py` - Segmenter LLM
+- ❌ `test_segmentation_approaches.py` - Test per approcci segmentazione
+- ❌ `UNIFIED_FLOW_README.md` - Documentazione flusso unificato
+- ❌ `SEGMENTATION_APPROACHES_GUIDE.md` - Guida approcci segmentazione
+- ❌ `ADVANCED_SEGMENTATION_README.md` - Documentazione segmenter avanzato
+
+#### Cartelle Rimosse
+- ❌ `pipelines/` - Cartella completa
+- ❌ `ocr/` - Cartella completa
+
+#### Endpoint Rimossi da `app.py`
+- ❌ `/api/upload-packet-ocr`
+- ❌ `/api/ingest-packet-ocr-sync`
+- ❌ `/api/packet-status/<pending_id>`
+- ❌ `/api/document-packet-status/<patient_id>`
+- ❌ `/api/document-ocr-text/<patient_id>`
+- ❌ `/api/debug-processing-status/<patient_id>`
+- ❌ `/api/force-complete-status/<patient_id>`
+- ❌ `/api/restart-processing/<patient_id>`
+- ❌ `/api/set-patient-id/<patient_id>`
+- ❌ `/api/document-packet-files/<patient_id>`
+
+#### Metodi Rimossi da `controller/controller.py`
+- ❌ `process_clinical_packet_with_ocr()`
+- ❌ `process_single_document_as_packet()` (300+ righe)
+- ❌ `_save_ocr_text_file()`
+- ❌ `_save_section_as_document()`
+- ❌ `_save_packet_processing_status()`
+
+#### Dipendenze Rimosse
+- ❌ `mistralai>=1.0.0` da `requirements.txt`
+
+### 🎯 Risultato
+L'applicazione ora ha **solo il flusso tradizionale**:
+- Upload singolo documento → `pdfplumber` per estrazione testo → `TOGETHER_API_KEY` per LLM
+- Nessun OCR esterno - usa solo `pdfplumber` (locale)
+- Nessuna segmentazione - ogni documento viene processato come singolo tipo
+- Solo una API key richiesta: `TOGETHER_API_KEY`
+
+---
+
 ## 2025-10-09 - Fix Critici per Produzione
 
 ### 🐛 Bug Fixes
@@ -33,7 +89,7 @@
 - **Endpoint**: `GET /health`
 - **Descrizione**: Verifica lo stato dell'applicazione e delle configurazioni
 - **Controlla**:
-  - API keys configurate (TOGETHER_API_KEY, MISTRAL_API_KEY)
+  - API key configurata (TOGETHER_API_KEY)
   - Esistenza e scrivibilità cartelle upload/export
   - Stato complessivo del sistema
 - **File**: `app.py`
@@ -93,7 +149,6 @@ Se stai aggiornando da una versione precedente:
 1. **Configura le API keys** (se non già fatto):
    ```bash
    TOGETHER_API_KEY=your_key_here
-   MISTRAL_API_KEY=your_key_here
    ```
 
 2. **Verifica la configurazione**:
@@ -113,7 +168,6 @@ Per testare le fix in locale:
    ```bash
    # Rimuovi le API keys
    unset TOGETHER_API_KEY
-   unset MISTRAL_API_KEY
    
    # Avvia l'app
    python app.py
@@ -126,7 +180,6 @@ Per testare le fix in locale:
 2. Con API keys:
    ```bash
    export TOGETHER_API_KEY=your_key
-   export MISTRAL_API_KEY=your_key
    
    python app.py
    

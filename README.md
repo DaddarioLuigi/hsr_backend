@@ -7,7 +7,6 @@ Backend Flask per la gestione di pazienti, documenti clinici, entità estratte e
 - Python 3.9+
 - pip
 - **TOGETHER_API_KEY** - API key per Together AI (obbligatoria)
-- **MISTRAL_API_KEY** - API key per Mistral AI (obbligatoria)
 
 ## Installazione
 
@@ -20,7 +19,6 @@ Backend Flask per la gestione di pazienti, documenti clinici, entità estratte e
    ```bash
    # Crea un file .env nella root del progetto
    TOGETHER_API_KEY=your_together_api_key_here
-   MISTRAL_API_KEY=your_mistral_api_key_here
    ```
 4. (Opzionale) Crea la cartella `uploads/` nella root del progetto se non esiste:
    ```bash
@@ -44,7 +42,7 @@ curl http://localhost:8080/health
 ```
 
 Questo endpoint restituisce lo stato di:
-- API keys configurate (TOGETHER_API_KEY, MISTRAL_API_KEY)
+- API key configurata (TOGETHER_API_KEY)
 - Cartelle di upload ed export
 - Permessi di scrittura
 
@@ -54,7 +52,6 @@ Questo endpoint restituisce lo stato di:
   "status": "healthy",
   "checks": {
     "together_api_key": { "configured": true, "status": "ok" },
-    "mistral_api_key": { "configured": true, "status": "ok" },
     "upload_folder": { "exists": true, "writable": true, "status": "ok" },
     "export_folder": { "exists": true, "writable": true, "status": "ok" }
   }
@@ -86,17 +83,21 @@ La documentazione OpenAPI è disponibile nel file [`openapi.yaml`](./openapi.yam
 
 - `GET    /api/patients` — Elenco pazienti
 - `GET    /api/patient/{patient_id}` — Dettaglio paziente e lista documenti
-- `POST   /api/upload-document` — Caricamento documento PDF
+- `POST   /api/upload-document` — Caricamento documento PDF (flusso singolo)
 - `GET    /api/document/{document_id}` — Dati per l'editor di entità
 - `PUT    /api/document/{document_id}` — Aggiorna le entità di un documento
 - `GET    /api/export-excel` — Esporta tutti i dati in Excel
+- `GET    /health` — Verifica stato applicazione e configurazione
 
 ## Struttura delle cartelle
 
 - `app.py` — Entry point Flask
 - `controller/` — Logica di business
+- `llm/` — Gestione LLM e prompt
 - `utils/` — Utility per file, Excel, ecc.
+- `config/` — Configurazioni
 - `uploads/` — Cartelle e file dei pazienti e documenti
+- `export/` — File Excel esportati
 - `openapi.yaml` — Documentazione OpenAPI
 
 ## Configurazione AWS S3

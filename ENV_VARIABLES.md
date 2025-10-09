@@ -11,10 +11,6 @@ Queste variabili **DEVONO** essere configurate per il corretto funzionamento del
 - **Dove ottenerla**: https://www.together.ai/
 - **Esempio**: `TOGETHER_API_KEY=abc123def456...`
 
-### `MISTRAL_API_KEY`
-- **Descrizione**: API key per Mistral AI (usata per l'OCR dei documenti PDF)
-- **Dove ottenerla**: https://console.mistral.ai/
-- **Esempio**: `MISTRAL_API_KEY=xyz789ghi012...`
 
 ## 🟡 OPZIONALI
 
@@ -86,7 +82,6 @@ Se configurate, i file vengono salvati su AWS S3 invece che localmente.
 ```bash
 # .env
 TOGETHER_API_KEY=your_together_api_key_here
-MISTRAL_API_KEY=your_mistral_api_key_here
 ```
 
 ### Produzione (Railway, Render, etc.)
@@ -99,7 +94,6 @@ MISTRAL_API_KEY=your_mistral_api_key_here
 
 Per verificare che le variabili siano configurate correttamente, l'applicazione:
 - **TOGETHER_API_KEY**: Fallirà all'avvio del `DocumentController` se mancante
-- **MISTRAL_API_KEY**: Fallirà al primo processing di un documento se mancante
 
 I log mostreranno chiaramente quale API key manca.
 
@@ -108,15 +102,10 @@ I log mostreranno chiaramente quale API key manca.
 ### Documento non viene elaborato
 Se carichi un documento ma non viene elaborato:
 1. Verifica che `TOGETHER_API_KEY` sia configurata
-2. Verifica che `MISTRAL_API_KEY` sia configurata
 3. Controlla i log per messaggi di errore
 4. Controlla la cartella `uploads/<patient_id>/errors/` per dettagli sull'errore
 
 ### Errore "TOGETHER_API_KEY non configurata"
 - Configura la variabile `TOGETHER_API_KEY` nelle impostazioni del servizio
-- Riavvia l'applicazione
-
-### Errore "MISTRAL_API_KEY non configurata"
-- Configura la variabile `MISTRAL_API_KEY` nelle impostazioni del servizio
 - Riavvia l'applicazione
 

@@ -35,7 +35,6 @@ Prima di deployare, assicurati di avere:
 3. Aggiungi:
    ```
    TOGETHER_API_KEY = your_together_api_key_here
-   MISTRAL_API_KEY = your_mistral_api_key_here
    ```
 4. Clicca "Deploy" per riavviare
 
@@ -57,7 +56,7 @@ Prima di deployare, assicurati di avere:
 Crea un file `.env` o passa le variabili al container:
 
 ```bash
-docker run -e TOGETHER_API_KEY=xxx -e MISTRAL_API_KEY=yyy ...
+docker run -e TOGETHER_API_KEY=xxx ...
 ```
 
 O in `docker-compose.yml`:
@@ -66,7 +65,6 @@ services:
   backend:
     environment:
       - TOGETHER_API_KEY=${TOGETHER_API_KEY}
-      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
 ```
 
 ## 🏥 Health Check
@@ -84,10 +82,6 @@ curl https://tuo-dominio.com/health
   "status": "healthy",
   "checks": {
     "together_api_key": {
-      "configured": true,
-      "status": "ok"
-    },
-    "mistral_api_key": {
       "configured": true,
       "status": "ok"
     },
@@ -114,7 +108,6 @@ curl https://tuo-dominio.com/health
   "status": "degraded",
   "warnings": [
     "TOGETHER_API_KEY non configurata - l'elaborazione dei documenti fallirà",
-    "MISTRAL_API_KEY non configurata - l'OCR dei documenti fallirà"
   ],
   "checks": {
     "together_api_key": {
@@ -139,7 +132,6 @@ RuntimeError: TOGETHER_API_KEY non configurata. Assicurati di impostare la varia
 ```
 
 ```
-RuntimeError: MISTRAL_API_KEY non configurata
 ```
 
 ### 2. Verifica lo Stato del Processing
