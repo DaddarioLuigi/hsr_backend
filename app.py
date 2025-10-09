@@ -260,9 +260,33 @@ def upload_document():
                 )
                 
                 # Processing in background con il nuovo metodo
+                def process_packet_with_error_logging():
+                    try:
+                        document_controller.process_single_document_as_packet(
+                            temp_filepath, patient_id_final, filename
+                        )
+                    except Exception as e:
+                        app.logger.exception(f"Errore critico nel processing del pacchetto {filename}: {e}")
+                        # Salva stato di errore
+                        try:
+                            import json
+                            error_status = {
+                                "patient_id": patient_id_final,
+                                "status": "failed",
+                                "message": f"Errore critico: {str(e)}",
+                                "progress": 100,
+                                "filename": filename,
+                                "errors": [str(e)]
+                            }
+                            status_path = os.path.join(UPLOAD_FOLDER, patient_id_final, "processing_status.json")
+                            os.makedirs(os.path.dirname(status_path), exist_ok=True)
+                            with open(status_path, "w", encoding="utf-8") as f:
+                                json.dump(error_status, f, indent=2, ensure_ascii=False)
+                        except Exception as save_error:
+                            app.logger.error(f"Impossibile salvare stato di errore: {save_error}")
+                
                 Thread(
-                    target=document_controller.process_single_document_as_packet,
-                    args=(temp_filepath, patient_id_final, filename),
+                    target=process_packet_with_error_logging,
                     daemon=True,
                 ).start()
                 
@@ -337,9 +361,16 @@ def upload_document():
                 provided_anagraphic = document_controller.file_manager.read_existing_entities(patient_id_final, "lettera_dimissione") if document_type != "lettera_dimissione" else None
 
                 # Processing in background per evitare timeout del worker
+                def process_with_error_logging():
+                    try:
+                        document_controller.process_document_and_entities(
+                            filepath, patient_id_final, document_type, provided_anagraphic
+                        )
+                    except Exception as e:
+                        app.logger.exception(f"Errore critico nel processing di {filename}: {e}")
+                
                 Thread(
-                    target=document_controller.process_document_and_entities,
-                    args=(filepath, patient_id_final, document_type, provided_anagraphic),
+                    target=process_with_error_logging,
                     daemon=True,
                 ).start()
 
@@ -388,9 +419,14 @@ def upload_packet_ocr():
             pending_id, "packet_ocr", filename, file
         )
 
+        def process_ocr_with_error_logging():
+            try:
+                document_controller.process_clinical_packet_with_ocr(filepath, pending_id)
+            except Exception as e:
+                app.logger.exception(f"Errore critico nel processing OCR: {e}")
+        
         Thread(
-            target=document_controller.process_clinical_packet_with_ocr,
-            args=(filepath, pending_id),
+            target=process_ocr_with_error_logging,
             daemon=True,
         ).start()
 
@@ -754,9 +790,16 @@ def restart_processing(patient_id):
                 return jsonify({"error": f"Paziente con ID {new_patient_id} esiste già"}), 409
         
         # Riavvia il processing con il nuovo ID
+        def restart_process_with_error_logging():
+            try:
+                document_controller.process_single_document_as_packet(
+                    original_filepath, new_patient_id, original_filename
+                )
+            except Exception as e:
+                app.logger.exception(f"Errore critico nel riavvio processing: {e}")
+        
         Thread(
-            target=document_controller.process_single_document_as_packet,
-            args=(original_filepath, new_patient_id, original_filename),
+            target=restart_process_with_error_logging,
             daemon=True,
         ).start()
         
@@ -977,6 +1020,68 @@ def check_document_coherence():
 def index():
     log_route("index")
     return "Hello from Railway!"
+
+@app.route("/health", methods=["GET"])
+def health_check():
+    """Endpoint per verificare lo stato dell'applicazione e delle configurazioni."""
+    log_route("health_check")
+    
+    health_status = {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "checks": {}
+    }
+    
+    # Verifica API keys
+    together_key = os.getenv("TOGETHER_API_KEY")
+    mistral_key = os.getenv("MISTRAL_API_KEY")
+    
+    health_status["checks"]["together_api_key"] = {
+        "configured": bool(together_key),
+        "status": "ok" if together_key else "missing"
+    }
+    
+    health_status["checks"]["mistral_api_key"] = {
+        "configured": bool(mistral_key),
+        "status": "ok" if mistral_key else "missing"
+    }
+    
+    # Verifica cartelle
+    upload_exists = os.path.exists(UPLOAD_FOLDER)
+    export_exists = os.path.exists(EXPORT_FOLDER)
+    
+    health_status["checks"]["upload_folder"] = {
+        "path": UPLOAD_FOLDER,
+        "exists": upload_exists,
+        "writable": os.access(UPLOAD_FOLDER, os.W_OK) if upload_exists else False,
+        "status": "ok" if (upload_exists and os.access(UPLOAD_FOLDER, os.W_OK)) else "error"
+    }
+    
+    health_status["checks"]["export_folder"] = {
+        "path": EXPORT_FOLDER,
+        "exists": export_exists,
+        "writable": os.access(EXPORT_FOLDER, os.W_OK) if export_exists else False,
+        "status": "ok" if (export_exists and os.access(EXPORT_FOLDER, os.W_OK)) else "error"
+    }
+    
+    # Determina lo stato complessivo
+    all_ok = all(
+        check.get("status") == "ok" 
+        for check in health_status["checks"].values()
+    )
+    
+    health_status["status"] = "healthy" if all_ok else "degraded"
+    
+    # Se non tutte le API keys sono configurate, aggiungi un warning
+    if not (together_key and mistral_key):
+        health_status["warnings"] = []
+        if not together_key:
+            health_status["warnings"].append("TOGETHER_API_KEY non configurata - l'elaborazione dei documenti fallirà")
+        if not mistral_key:
+            health_status["warnings"].append("MISTRAL_API_KEY non configurata - l'OCR dei documenti fallirà")
+    
+    status_code = 200 if all_ok else 503
+    return jsonify(health_status), status_code
 
 if __name__ == "__main__":
     logging.info("Avvio app in locale su porta 8080")

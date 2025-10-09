@@ -6,6 +6,8 @@ Backend Flask per la gestione di pazienti, documenti clinici, entità estratte e
 
 - Python 3.9+
 - pip
+- **TOGETHER_API_KEY** - API key per Together AI (obbligatoria)
+- **MISTRAL_API_KEY** - API key per Mistral AI (obbligatoria)
 
 ## Installazione
 
@@ -14,7 +16,13 @@ Backend Flask per la gestione di pazienti, documenti clinici, entità estratte e
    ```bash
    pip install -r requirements.txt
    ```
-3. (Opzionale) Crea la cartella `uploads/` nella root del progetto se non esiste:
+3. **Configura le variabili d'ambiente** (vedi [ENV_VARIABLES.md](./ENV_VARIABLES.md)):
+   ```bash
+   # Crea un file .env nella root del progetto
+   TOGETHER_API_KEY=your_together_api_key_here
+   MISTRAL_API_KEY=your_mistral_api_key_here
+   ```
+4. (Opzionale) Crea la cartella `uploads/` nella root del progetto se non esiste:
    ```bash
    mkdir uploads
    ```
@@ -25,7 +33,47 @@ Backend Flask per la gestione di pazienti, documenti clinici, entità estratte e
 python app.py
 ```
 
-Il server sarà disponibile su [http://localhost:5000](http://localhost:5000)
+Il server sarà disponibile su [http://localhost:8080](http://localhost:8080)
+
+## Verifica Configurazione
+
+Per verificare che l'applicazione sia configurata correttamente:
+
+```bash
+curl http://localhost:8080/health
+```
+
+Questo endpoint restituisce lo stato di:
+- API keys configurate (TOGETHER_API_KEY, MISTRAL_API_KEY)
+- Cartelle di upload ed export
+- Permessi di scrittura
+
+**Esempio risposta OK:**
+```json
+{
+  "status": "healthy",
+  "checks": {
+    "together_api_key": { "configured": true, "status": "ok" },
+    "mistral_api_key": { "configured": true, "status": "ok" },
+    "upload_folder": { "exists": true, "writable": true, "status": "ok" },
+    "export_folder": { "exists": true, "writable": true, "status": "ok" }
+  }
+}
+```
+
+**Esempio risposta con errori:**
+```json
+{
+  "status": "degraded",
+  "warnings": [
+    "TOGETHER_API_KEY non configurata - l'elaborazione dei documenti fallirà"
+  ],
+  "checks": {
+    "together_api_key": { "configured": false, "status": "missing" },
+    ...
+  }
+}
+```
 
 ## Documentazione API
 

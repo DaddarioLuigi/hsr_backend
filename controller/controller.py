@@ -146,20 +146,31 @@ class DocumentController:
         document_type: str,
         provided_anagraphic: dict = None
     ) -> dict:
-        # 1. Estrai testo
-        with pdfplumber.open(filepath) as pdf:
-            text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+        try:
+            # 1. Estrai testo
+            with pdfplumber.open(filepath) as pdf:
+                text = "\n".join(page.extract_text() or "" for page in pdf.pages)
 
-        # 2. Prepara prompt
-        prompt = self.prompt_manager.get_prompt_for(document_type)
-        full_prompt = prompt + "\n```\n" + text + "\n```"
-        spec = self.prompt_manager.get_spec_for(document_type)
-        explicit_keys = spec['entities']
+            # 2. Prepara prompt
+            prompt = self.prompt_manager.get_prompt_for(document_type)
+            full_prompt = prompt + "\n```\n" + text + "\n```"
+            spec = self.prompt_manager.get_spec_for(document_type)
+            explicit_keys = spec['entities']
 
-        # 3. Richiesta al modello
-        response_str = self.llm.get_response_from_document(
-            text, document_type, model=self.model_name
-        )
+            # 3. Richiesta al modello
+            response_str = self.llm.get_response_from_document(
+                text, document_type, model=self.model_name
+            )
+        except RuntimeError as e:
+            # API key mancante o altri errori runtime
+            logging.error(f"Errore runtime nel processing del documento {filepath}: {e}")
+            # Salva uno stato di errore
+            self._save_processing_error(patient_id, document_type, str(e))
+            raise
+        except Exception as e:
+            logging.exception(f"Errore nel processing del documento {filepath}: {e}")
+            self._save_processing_error(patient_id, document_type, str(e))
+            raise
 
         # 4. Parsifica risposta
         extractor = EntityExtractor(explicit_keys)
@@ -747,6 +758,26 @@ class DocumentController:
             
         except Exception as e:
             logging.error(f"Errore salvataggio stato processing: {e}")
+    
+    def _save_processing_error(self, patient_id: str, document_type: str, error_message: str):
+        """Salva informazioni sull'errore di processing per debug."""
+        try:
+            error_folder = os.path.join(self.upload_folder, patient_id, "errors")
+            os.makedirs(error_folder, exist_ok=True)
+            
+            error_path = os.path.join(error_folder, f"{document_type}_error.json")
+            error_data = {
+                "document_type": document_type,
+                "error": error_message,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            with open(error_path, "w", encoding="utf-8") as f:
+                json.dump(error_data, f, indent=2, ensure_ascii=False)
+            
+            logging.info(f"Errore salvato per debug: {error_path}")
+        except Exception as e:
+            logging.error(f"Impossibile salvare errore: {e}")
 
 
     def update_entities_for_document(
