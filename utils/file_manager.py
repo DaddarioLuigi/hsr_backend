@@ -4,7 +4,8 @@ import shutil
 import re
 import logging
 from datetime import datetime
-from .s3_manager import S3Manager
+# S3Manager moved to docs/unused - temporarily disabled
+# from .s3_manager import S3Manager
 
 
 
@@ -14,7 +15,8 @@ class FileManager:
 
     def __init__(self):
         os.makedirs(self.UPLOAD_FOLDER, exist_ok=True)
-        self.s3_manager = S3Manager()
+        # S3Manager temporarily disabled
+        self.s3_manager = None
     
     def cleanup_temp_files(self, patient_id: str, document_type: str = None):
         """

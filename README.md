@@ -1,139 +1,232 @@
-# HSR Backend API
+# HSR Backend - Sistema di Gestione Documenti Clinici
 
-Backend Flask per la gestione di pazienti, documenti clinici, entità estratte ed esportazione dati in Excel.
+Un sistema backend Flask per l'elaborazione automatica di documenti clinici cardiologici utilizzando Large Language Models (LLM) per l'estrazione di entità strutturate.
 
-## Requisiti
+## 🏥 Panoramica
 
-- Python 3.9+
-- pip
-- **TOGETHER_API_KEY** - API key per Together AI (obbligatoria)
+Il sistema è progettato per processare documenti clinici PDF e estrarre automaticamente informazioni strutturate utilizzando modelli di linguaggio avanzati. Supporta diversi tipi di documenti cardiologici e mantiene la coerenza dei dati tra documenti dello stesso paziente.
 
-## Installazione
+### Tipi di Documenti Supportati
 
-1. Clona il repository o copia tutti i file backend in una cartella.
-2. Installa le dipendenze:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. **Configura le variabili d'ambiente** (vedi [ENV_VARIABLES.md](./ENV_VARIABLES.md)):
-   ```bash
-   # Crea un file .env nella root del progetto
-   TOGETHER_API_KEY=your_together_api_key_here
-   ```
-4. (Opzionale) Crea la cartella `uploads/` nella root del progetto se non esiste:
-   ```bash
-   mkdir uploads
-   ```
+- **Lettera di Dimissione** - Documento principale con dati anagrafici
+- **Coronarografia** - Esami diagnostici invasivi
+- **Interventi** - Verbali di interventi chirurgici
+- **Ecocardiogrammi** - Pre e post-operatori
+- **TC Cuore** - Tomografie computerizzate
+- **Altri documenti** - Documenti generici
 
-## Avvio del server
+## 🏗️ Architettura del Sistema
 
+### Componenti Principali
+
+```
+hsr_backend/
+├── app.py                    # Applicazione Flask principale
+├── controller/
+│   └── controller.py         # Controller per la logica di business
+├── llm/
+│   ├── extractor.py          # Interfaccia con LLM (Together AI)
+│   └── prompts.py            # Gestione prompt e schemi JSON
+├── utils/
+│   ├── file_manager.py       # Gestione file e storage
+│   ├── excel_manager.py      # Esportazione dati Excel
+│   ├── entity_extractor.py   # Parsing risposte LLM
+│   ├── table_parser.py       # Estrazione tabelle da PDF
+│   ├── metadata_coherence_manager.py  # Verifica coerenza dati
+│   └── progress.py           # Tracking progresso elaborazione
+└── docs/                     # Documentazione
+    ├── unused/               # Codice non utilizzato (S3)
+    └── *.md                  # Guide e documentazione
+```
+
+### Flusso di Elaborazione
+
+1. **Upload Documento** - Caricamento PDF con validazione
+2. **Estrazione Testo** - Parsing PDF con pdfplumber
+3. **Elaborazione LLM** - Estrazione entità con Together AI
+4. **Verifica Coerenza** - Controllo consistenza dati paziente
+5. **Storage** - Salvataggio file e metadati
+6. **Aggiornamento Excel** - Esportazione dati strutturati
+
+## 🚀 Installazione e Configurazione
+
+### Prerequisiti
+
+- Python 3.8+
+- Together AI API Key
+- Flask e dipendenze (vedi `requirements.txt`)
+
+### Setup
+
+1. **Clona il repository**
+```bash
+git clone <repository-url>
+cd hsr_backend
+```
+
+2. **Installa dipendenze**
+```bash
+pip install -r requirements.txt
+```
+
+3. **Configura variabili d'ambiente**
+```bash
+# Crea file .env
+TOGETHER_API_KEY=your_together_api_key_here
+UPLOAD_FOLDER=./uploads
+EXPORT_FOLDER=./export
+FRONTEND_ORIGINS=http://localhost:3000
+MAX_UPLOAD_MB=25
+MAX_TOTAL_UPLOAD_MB=100
+```
+
+4. **Avvia l'applicazione**
 ```bash
 python app.py
+# oppure
+python run.py
 ```
 
-Il server sarà disponibile su [http://localhost:8080](http://localhost:8080)
+L'applicazione sarà disponibile su `http://localhost:8080`
 
-## Verifica Configurazione
+## 📡 API Endpoints
 
-Per verificare che l'applicazione sia configurata correttamente:
+### Gestione Pazienti
+- `GET /api/patients` - Lista tutti i pazienti
+- `GET /api/patient/<patient_id>` - Dettagli paziente specifico
 
+### Gestione Documenti
+- `POST /api/upload-document` - Carica nuovo documento
+- `GET /api/document/<document_id>` - Dettagli documento
+- `PUT /api/document/<document_id>` - Aggiorna entità documento
+- `DELETE /api/document/<document_id>` - Elimina documento
+
+### Elaborazione e Coerenza
+- `GET /preview-entities/<patient_id>/<document_type>/<filename>` - Anteprima entità
+- `POST /update-entities` - Aggiorna entità documento
+- `GET /api/coherence-status/<patient_id>` - Stato coerenza metadati
+- `POST /api/check-document-coherence` - Verifica coerenza pre-upload
+
+### Esportazione e Utilità
+- `GET /api/export-excel` - Esporta dati in Excel
+- `POST /api/cleanup-temp-files/<patient_id>` - Pulisce file temporanei
+- `GET /health` - Health check sistema
+
+## 🔧 Configurazione Avanzata
+
+### Modelli LLM Supportati
+
+Il sistema supporta diversi modelli tramite Together AI:
+- `deepseek-ai/DeepSeek-V3` (default)
+- `openai/gpt-oss-120b`
+- Altri modelli compatibili con Together AI
+
+### Validazione e Sicurezza
+
+- **Validazione File**: Solo PDF, dimensione massima configurabile
+- **Validazione Patient ID**: Normalizzazione e pulizia input
+- **Coerenza Metadati**: Verifica automatica consistenza tra documenti
+- **CORS**: Configurabile per frontend specifici
+- **Headers Sicurezza**: X-Content-Type-Options, X-Frame-Options
+
+### Storage
+
+- **File System**: Storage locale in cartelle organizzate per paziente/tipo
+- **Metadati**: JSON con informazioni upload e processing
+- **Backup**: Struttura cartelle per backup e recovery
+
+## 📊 Struttura Dati
+
+### Organizzazione File
+```
+uploads/
+├── {patient_id}/
+│   ├── lettera_dimissione/
+│   │   ├── documento.pdf
+│   │   ├── documento.pdf.meta.json
+│   │   └── entities.json
+│   ├── coronarografia/
+│   └── ...
+```
+
+### Schema Entità (Esempio Lettera Dimissione)
+```json
+{
+  "n_cartella": 12345,
+  "nome": "Mario",
+  "cognome": "Rossi",
+  "sesso": "M",
+  "eta_al_momento_dell_intervento": 65,
+  "data_di_nascita": "1958-03-15",
+  "Diagnosi": "Stenosi aortica severa",
+  "classe_nyha": "III",
+  "diabete": true,
+  "ipertensione": true
+}
+```
+
+## 🔍 Monitoraggio e Debug
+
+### Logging
+- Log strutturati con timestamp e livelli
+- Tracciamento errori LLM e processing
+- Monitoraggio performance API
+
+### Health Check
+Endpoint `/health` fornisce:
+- Stato configurazione API keys
+- Verifica cartelle e permessi
+- Warnings per configurazioni mancanti
+
+### Gestione Errori
+- Retry automatico per errori LLM
+- Cleanup automatico file temporanei
+- Rollback in caso di errori di coerenza
+
+## 🚀 Deployment
+
+### Produzione
+- **Gunicorn**: Server WSGI per produzione
+- **Railway**: Configurazione per deployment cloud
+- **Nixpacks**: Buildpack per containerizzazione
+
+### Variabili Ambiente Produzione
 ```bash
-curl http://localhost:8080/health
+TOGETHER_API_KEY=your_production_key
+UPLOAD_FOLDER=/data/uploads
+EXPORT_FOLDER=/data/export
+FRONTEND_ORIGINS=https://your-frontend-domain.com
 ```
 
-Questo endpoint restituisce lo stato di:
-- API key configurata (TOGETHER_API_KEY)
-- Cartelle di upload ed export
-- Permessi di scrittura
+## 📚 Documentazione Aggiuntiva
 
-**Esempio risposta OK:**
-```json
-{
-  "status": "healthy",
-  "checks": {
-    "together_api_key": { "configured": true, "status": "ok" },
-    "upload_folder": { "exists": true, "writable": true, "status": "ok" },
-    "export_folder": { "exists": true, "writable": true, "status": "ok" }
-  }
-}
-```
+Vedi la cartella `docs/` per documentazione dettagliata:
+- `DEPLOYMENT_GUIDE.md` - Guida deployment
+- `ENV_VARIABLES.md` - Variabili ambiente
+- `CHANGELOG.md` - Cronologia modifiche
+- `IMPROVEMENTS_README.md` - Roadmap miglioramenti
 
-**Esempio risposta con errori:**
-```json
-{
-  "status": "degraded",
-  "warnings": [
-    "TOGETHER_API_KEY non configurata - l'elaborazione dei documenti fallirà"
-  ],
-  "checks": {
-    "together_api_key": { "configured": false, "status": "missing" },
-    ...
-  }
-}
-```
+## 🤝 Contributi
 
-## Documentazione API
+1. Fork del repository
+2. Crea branch feature (`git checkout -b feature/nuova-funzionalita`)
+3. Commit modifiche (`git commit -am 'Aggiunge nuova funzionalità'`)
+4. Push branch (`git push origin feature/nuova-funzionalita`)
+5. Crea Pull Request
 
-La documentazione OpenAPI è disponibile nel file [`openapi.yaml`](./openapi.yaml).
+## 📄 Licenza
 
-- Puoi visualizzarla e testarla su [Swagger Editor](https://editor.swagger.io/) copiando/incollando il contenuto del file.
-- Tutte le specifiche degli endpoint, parametri e risposte sono descritte lì.
+Vedi file `LICENSE` per dettagli sulla licenza.
 
-## Endpoints principali
+## 🆘 Supporto
 
-- `GET    /api/patients` — Elenco pazienti
-- `GET    /api/patient/{patient_id}` — Dettaglio paziente e lista documenti
-- `POST   /api/upload-document` — Caricamento documento PDF (flusso singolo)
-- `GET    /api/document/{document_id}` — Dati per l'editor di entità
-- `PUT    /api/document/{document_id}` — Aggiorna le entità di un documento
-- `GET    /api/export-excel` — Esporta tutti i dati in Excel
-- `GET    /health` — Verifica stato applicazione e configurazione
+Per problemi o domande:
+1. Controlla la documentazione in `docs/`
+2. Verifica i log dell'applicazione
+3. Controlla lo stato con `/health`
+4. Apri una issue su GitHub
 
-## Struttura delle cartelle
+---
 
-- `app.py` — Entry point Flask
-- `controller/` — Logica di business
-- `llm/` — Gestione LLM e prompt
-- `utils/` — Utility per file, Excel, ecc.
-- `config/` — Configurazioni
-- `uploads/` — Cartelle e file dei pazienti e documenti
-- `export/` — File Excel esportati
-- `openapi.yaml` — Documentazione OpenAPI
-
-## Configurazione AWS S3
-
-Variabili d'ambiente per l'integrazione con AWS S3:
-
-- `AWS_ACCESS_KEY_ID`: Access key ID per AWS
-- `AWS_SECRET_ACCESS_KEY`: Secret access key per AWS
-- `AWS_REGION`: Regione AWS (es. us-east-1)
-- `S3_BUCKET_NAME`: Nome del bucket S3 per i file
-- `S3_BUCKET_EXPORT`: Nome del bucket S3 per i file Excel (opzionale)
-
-## Note per il frontend developer
-
-- Tutte le risposte e i parametri sono documentati in `openapi.yaml`.
-- Per testare upload e download file, usa strumenti come Postman o Swagger UI.
-- Il backend salva i PDF e i dati associati nella cartella `uploads/`.
-
-## Persistenza su Railway
-
-Il backend salva i PDF e i dati associati nella cartella `uploads/`.
-Su Railway abilita la persistenza con un Volume:
-
-- Crea un Volume e montalo su `/data`
-- Imposta le variabili d'ambiente del servizio:
-  - `UPLOAD_FOLDER=/data/uploads`
-  - `EXPORT_FOLDER=/data/export`
-
-Opzionali:
-- `MAX_UPLOAD_MB` (default `25`) per limitare la dimensione totale dell'upload
-
-Gli upload accettano solo PDF.
-
-Endpoint per cancellazione documenti:
-- `DELETE /api/document/{document_id}` — elimina il documento; se il paziente rimane senza documenti, rimuove anche la cartella del paziente.
-
-## Supporto
-
-Per domande tecniche o bug, contatta il maintainer del backend.
+**Versione**: 1.0.0  
+**Ultimo aggiornamento**: 2025
