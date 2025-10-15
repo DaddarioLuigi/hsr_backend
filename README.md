@@ -1,77 +1,77 @@
-# HSR Backend - Sistema di Gestione Documenti Clinici
+# HSR Backend - Clinical Document Management System
 
-Un sistema backend Flask per l'elaborazione automatica di documenti clinici cardiologici utilizzando Large Language Models (LLM) per l'estrazione di entità strutturate.
+A Flask backend system for automatic processing of clinical cardiology documents using Large Language Models (LLM) for structured entity extraction.
 
-## 🏥 Panoramica
+## 🏥 Overview
 
-Il sistema è progettato per processare documenti clinici PDF e estrarre automaticamente informazioni strutturate utilizzando modelli di linguaggio avanzati. Supporta diversi tipi di documenti cardiologici e mantiene la coerenza dei dati tra documenti dello stesso paziente.
+The system is designed to process clinical PDF documents and automatically extract structured information using advanced language models. It supports various types of cardiology documents and maintains data consistency between documents from the same patient.
 
-### Tipi di Documenti Supportati
+### Supported Document Types
 
-- **Lettera di Dimissione** - Documento principale con dati anagrafici
-- **Coronarografia** - Esami diagnostici invasivi
-- **Interventi** - Verbali di interventi chirurgici
-- **Ecocardiogrammi** - Pre e post-operatori
-- **TC Cuore** - Tomografie computerizzate
-- **Altri documenti** - Documenti generici
+- **Discharge Letter** - Main document with demographic data
+- **Coronary Angiography** - Invasive diagnostic exams
+- **Surgical Procedures** - Surgical procedure reports
+- **Echocardiograms** - Pre and post-operative
+- **Cardiac CT** - Computed tomography scans
+- **Other Documents** - Generic documents
 
-## 🏗️ Architettura del Sistema
+## 🏗️ System Architecture
 
-### Componenti Principali
+### Main Components
 
 ```
 hsr_backend/
-├── app.py                    # Applicazione Flask principale
+├── app.py                    # Main Flask application
 ├── controller/
-│   └── controller.py         # Controller per la logica di business
+│   └── controller.py         # Business logic controller
 ├── llm/
-│   ├── extractor.py          # Interfaccia con LLM (Together AI)
-│   └── prompts.py            # Gestione prompt e schemi JSON
+│   ├── extractor.py          # LLM interface (Together AI)
+│   └── prompts.py            # Prompt and JSON schema management
 ├── utils/
-│   ├── file_manager.py       # Gestione file e storage
-│   ├── excel_manager.py      # Esportazione dati Excel
-│   ├── entity_extractor.py   # Parsing risposte LLM
-│   ├── table_parser.py       # Estrazione tabelle da PDF
-│   ├── metadata_coherence_manager.py  # Verifica coerenza dati
-│   └── progress.py           # Tracking progresso elaborazione
-└── docs/                     # Documentazione
-    ├── unused/               # Codice non utilizzato (S3)
-    └── *.md                  # Guide e documentazione
+│   ├── file_manager.py       # File management and storage
+│   ├── excel_manager.py      # Excel data export
+│   ├── entity_extractor.py   # LLM response parsing
+│   ├── table_parser.py       # PDF table extraction
+│   ├── metadata_coherence_manager.py  # Data consistency verification
+│   └── progress.py           # Processing progress tracking
+└── docs/                     # Documentation
+    ├── unused/               # Unused code (S3)
+    └── *.md                  # Guides and documentation
 ```
 
-### Flusso di Elaborazione
+### Processing Flow
 
-1. **Upload Documento** - Caricamento PDF con validazione
-2. **Estrazione Testo** - Parsing PDF con pdfplumber
-3. **Elaborazione LLM** - Estrazione entità con Together AI
-4. **Verifica Coerenza** - Controllo consistenza dati paziente
-5. **Storage** - Salvataggio file e metadati
-6. **Aggiornamento Excel** - Esportazione dati strutturati
+1. **Document Upload** - PDF upload with validation
+2. **Text Extraction** - PDF parsing with pdfplumber
+3. **LLM Processing** - Entity extraction with Together AI
+4. **Consistency Check** - Patient data consistency verification
+5. **Storage** - File and metadata saving
+6. **Excel Update** - Structured data export
 
-## 🚀 Installazione e Configurazione
+## 🚀 Installation and Configuration
 
-### Prerequisiti
+### Prerequisites
 
 - Python 3.8+
 - Together AI API Key
-- Flask e dipendenze (vedi `requirements.txt`)
+- Flask and dependencies (see `requirements.txt`)
 
 ### Setup
 
-1. **Clona il repository**
+1. **Clone the repository**
 ```bash
 git clone <repository-url>
 cd hsr_backend
 ```
 
-2. **Installa dipendenze**
+2. **Install dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-3. **Configura variabili d'ambiente**
+3. **Configure environment variables**
 ```bash
-# Crea file .env
+# Create .env file
 TOGETHER_API_KEY=your_together_api_key_here
 UPLOAD_FOLDER=./uploads
 EXPORT_FOLDER=./export
@@ -80,64 +80,64 @@ MAX_UPLOAD_MB=25
 MAX_TOTAL_UPLOAD_MB=100
 ```
 
-4. **Avvia l'applicazione**
+4. **Start the application**
 ```bash
 python app.py
-# oppure
+# or
 python run.py
 ```
 
-L'applicazione sarà disponibile su `http://localhost:8080`
+The application will be available at `http://localhost:8080`
 
 ## 📡 API Endpoints
 
-### Gestione Pazienti
-- `GET /api/patients` - Lista tutti i pazienti
-- `GET /api/patient/<patient_id>` - Dettagli paziente specifico
+### Patient Management
+- `GET /api/patients` - List all patients
+- `GET /api/patient/<patient_id>` - Specific patient details
 
-### Gestione Documenti
-- `POST /api/upload-document` - Carica nuovo documento
-- `GET /api/document/<document_id>` - Dettagli documento
-- `PUT /api/document/<document_id>` - Aggiorna entità documento
-- `DELETE /api/document/<document_id>` - Elimina documento
+### Document Management
+- `POST /api/upload-document` - Upload new document
+- `GET /api/document/<document_id>` - Document details
+- `PUT /api/document/<document_id>` - Update document entities
+- `DELETE /api/document/<document_id>` - Delete document
 
-### Elaborazione e Coerenza
-- `GET /preview-entities/<patient_id>/<document_type>/<filename>` - Anteprima entità
-- `POST /update-entities` - Aggiorna entità documento
-- `GET /api/coherence-status/<patient_id>` - Stato coerenza metadati
-- `POST /api/check-document-coherence` - Verifica coerenza pre-upload
+### Processing and Consistency
+- `GET /preview-entities/<patient_id>/<document_type>/<filename>` - Entity preview
+- `POST /update-entities` - Update document entities
+- `GET /api/coherence-status/<patient_id>` - Metadata consistency status
+- `POST /api/check-document-coherence` - Pre-upload consistency check
 
-### Esportazione e Utilità
-- `GET /api/export-excel` - Esporta dati in Excel
-- `POST /api/cleanup-temp-files/<patient_id>` - Pulisce file temporanei
-- `GET /health` - Health check sistema
+### Export and Utilities
+- `GET /api/export-excel` - Export data to Excel
+- `POST /api/cleanup-temp-files/<patient_id>` - Clean temporary files
+- `GET /health` - System health check
 
-## 🔧 Configurazione Avanzata
+## 🔧 Advanced Configuration
 
-### Modelli LLM Supportati
+### Supported LLM Models
 
-Il sistema supporta diversi modelli tramite Together AI:
+The system supports various models via Together AI:
 - `deepseek-ai/DeepSeek-V3` (default)
 - `openai/gpt-oss-120b`
-- Altri modelli compatibili con Together AI
+- Other Together AI compatible models
 
-### Validazione e Sicurezza
+### Validation and Security
 
-- **Validazione File**: Solo PDF, dimensione massima configurabile
-- **Validazione Patient ID**: Normalizzazione e pulizia input
-- **Coerenza Metadati**: Verifica automatica consistenza tra documenti
-- **CORS**: Configurabile per frontend specifici
-- **Headers Sicurezza**: X-Content-Type-Options, X-Frame-Options
+- **File Validation**: PDF only, configurable maximum size
+- **Patient ID Validation**: Input normalization and cleaning
+- **Metadata Consistency**: Automatic consistency verification between documents
+- **CORS**: Configurable for specific frontends
+- **Security Headers**: X-Content-Type-Options, X-Frame-Options
 
 ### Storage
 
-- **File System**: Storage locale in cartelle organizzate per paziente/tipo
-- **Metadati**: JSON con informazioni upload e processing
-- **Backup**: Struttura cartelle per backup e recovery
+- **File System**: Local storage in organized folders by patient/type
+- **Metadata**: JSON with upload and processing information
+- **Backup**: Folder structure for backup and recovery
 
-## 📊 Struttura Dati
+## 📊 Data Structure
 
-### Organizzazione File
+### File Organization
 ```
 uploads/
 ├── {patient_id}/
@@ -149,7 +149,7 @@ uploads/
 │   └── ...
 ```
 
-### Schema Entità (Esempio Lettera Dimissione)
+### Entity Schema (Discharge Letter Example)
 ```json
 {
   "n_cartella": 12345,
@@ -165,32 +165,32 @@ uploads/
 }
 ```
 
-## 🔍 Monitoraggio e Debug
+## 🔍 Monitoring and Debug
 
 ### Logging
-- Log strutturati con timestamp e livelli
-- Tracciamento errori LLM e processing
-- Monitoraggio performance API
+- Structured logs with timestamps and levels
+- LLM and processing error tracking
+- API performance monitoring
 
 ### Health Check
-Endpoint `/health` fornisce:
-- Stato configurazione API keys
-- Verifica cartelle e permessi
-- Warnings per configurazioni mancanti
+The `/health` endpoint provides:
+- API key configuration status
+- Folder and permission verification
+- Warnings for missing configurations
 
-### Gestione Errori
-- Retry automatico per errori LLM
-- Cleanup automatico file temporanei
-- Rollback in caso di errori di coerenza
+### Error Management
+- Automatic retry for LLM errors
+- Automatic cleanup of temporary files
+- Rollback in case of consistency errors
 
 ## 🚀 Deployment
 
-### Produzione
-- **Gunicorn**: Server WSGI per produzione
-- **Railway**: Configurazione per deployment cloud
-- **Nixpacks**: Buildpack per containerizzazione
+### Production
+- **Gunicorn**: WSGI server for production
+- **Railway**: Cloud deployment configuration
+- **Nixpacks**: Buildpack for containerization
 
-### Variabili Ambiente Produzione
+### Production Environment Variables
 ```bash
 TOGETHER_API_KEY=your_production_key
 UPLOAD_FOLDER=/data/uploads
@@ -198,35 +198,35 @@ EXPORT_FOLDER=/data/export
 FRONTEND_ORIGINS=https://your-frontend-domain.com
 ```
 
-## 📚 Documentazione Aggiuntiva
+## 📚 Additional Documentation
 
-Vedi la cartella `docs/` per documentazione dettagliata:
-- `DEPLOYMENT_GUIDE.md` - Guida deployment
-- `ENV_VARIABLES.md` - Variabili ambiente
-- `CHANGELOG.md` - Cronologia modifiche
-- `IMPROVEMENTS_README.md` - Roadmap miglioramenti
+See the `docs/` folder for detailed documentation:
+- `DEPLOYMENT_GUIDE.md` - Deployment guide
+- `ENV_VARIABLES.md` - Environment variables
+- `CHANGELOG.md` - Change history
+- `IMPROVEMENTS_README.md` - Improvement roadmap
 
-## 🤝 Contributi
+## 🤝 Contributing
 
-1. Fork del repository
-2. Crea branch feature (`git checkout -b feature/nuova-funzionalita`)
-3. Commit modifiche (`git commit -am 'Aggiunge nuova funzionalità'`)
-4. Push branch (`git push origin feature/nuova-funzionalita`)
-5. Crea Pull Request
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/new-feature`)
+3. Commit changes (`git commit -am 'Add new feature'`)
+4. Push branch (`git push origin feature/new-feature`)
+5. Create Pull Request
 
-## 📄 Licenza
+## 📄 License
 
-Vedi file `LICENSE` per dettagli sulla licenza.
+See `LICENSE` file for license details.
 
-## 🆘 Supporto
+## 🆘 Support
 
-Per problemi o domande:
-1. Controlla la documentazione in `docs/`
-2. Verifica i log dell'applicazione
-3. Controlla lo stato con `/health`
-4. Apri una issue su GitHub
+For issues or questions:
+1. Check documentation in `docs/`
+2. Verify application logs
+3. Check status with `/health`
+4. Open an issue on GitHub
 
 ---
 
-**Versione**: 1.0.0  
-**Ultimo aggiornamento**: 2025
+**Version**: 1.0.0  
+**Last Updated**: 2025
