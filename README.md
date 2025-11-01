@@ -6,15 +6,6 @@ A Flask backend system for automatic processing of clinical cardiology documents
 
 The system is designed to process clinical PDF documents and automatically extract structured information using advanced language models. It supports various types of cardiology documents and maintains data consistency between documents from the same patient.
 
-### Supported Document Types
-
-- **Discharge Letter** - Main document with demographic data
-- **Coronary Angiography** - Invasive diagnostic exams
-- **Surgical Procedures** - Surgical procedure reports
-- **Echocardiograms** - Pre and post-operative
-- **Cardiac CT** - Computed tomography scans
-- **Other Documents** - Generic documents
-
 ## 🏗️ System Architecture
 
 ### Main Components
@@ -206,27 +197,6 @@ See the `docs/` folder for detailed documentation:
 - `CHANGELOG.md` - Change history
 - `IMPROVEMENTS_README.md` - Improvement roadmap
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/new-feature`)
-3. Commit changes (`git commit -am 'Add new feature'`)
-4. Push branch (`git push origin feature/new-feature`)
-5. Create Pull Request
-
 ## 📄 License
 
 See `LICENSE` file for license details.
-
-## 🆘 Support
-
-For issues or questions:
-1. Check documentation in `docs/`
-2. Verify application logs
-3. Check status with `/health`
-4. Open an issue on GitHub
-
----
-
-**Version**: 1.0.0  
-**Last Updated**: 2025
