@@ -153,25 +153,8 @@ class FileManager:
                     pass
             raise Exception(f"Errore nel salvataggio dei metadati: {str(e)}")
 
-        # 4) Upload su S3 (se configurato)
-        s3_result = None
-        if self.s3_manager.s3_client:
-            s3_key = f"patients/{normalized_patient_id}/{document_type}/{filename}"
-            s3_result = self.s3_manager.upload_file(filepath, s3_key)
-            if s3_result.get("success"):
-                # Aggiungi URL S3 ai metadati
-                meta["s3_url"] = s3_result.get("url")
-                meta["s3_key"] = s3_key
-                try:
-                    with open(meta_path, "w", encoding="utf-8") as mf:
-                        json.dump(meta, mf, indent=2, ensure_ascii=False)
-                except Exception as e:
-                    logging.warning(f"Errore nell'aggiornamento dei metadati con URL S3: {e}")
-                logging.info(f"File caricato su S3: {s3_key}")
-            else:
-                logging.warning(f"Errore upload S3: {s3_result.get('error')}")
-
-        return filepath, s3_result
+        # S3Manager rimosso - upload S3 non più supportato
+        return filepath, None
 
     def remove_patient_folder_if_exists(self, patient_id: str):
         folder_path = os.path.join(self.UPLOAD_FOLDER, patient_id)
@@ -195,14 +178,7 @@ class FileManager:
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(entities_obj, f, indent=2, ensure_ascii=False)
         
-        # Upload entities.json su S3 (se configurato)
-        if self.s3_manager.s3_client:
-            s3_key = f"patients/{patient_id}/{document_type}/entities.json"
-            s3_result = self.s3_manager.upload_file(output_path, s3_key)
-            if s3_result.get("success"):
-                logging.info(f"Entities JSON caricato su S3: {s3_key}")
-            else:
-                logging.warning(f"Errore upload entities JSON su S3: {s3_result.get('error')}")
+        # S3Manager rimosso - upload S3 non più supportato
 
 
     def read_existing_entities(self, patient_id: str, document_type: str):
@@ -645,25 +621,7 @@ class FileManager:
         except Exception as e:
             logging.warning(f"Impossibile rimuovere {entities_path}: {e}")
 
-        # Cancella file da S3 (se configurato)
-        if self.s3_manager.s3_client:
-            # Cancella PDF da S3
-            s3_pdf_key = f"patients/{patient_id}/{document_type}/{target_pdf}"
-            s3_result = self.s3_manager.delete_file(s3_pdf_key)
-            if s3_result.get("success"):
-                logging.info(f"PDF rimosso da S3: {s3_pdf_key}")
-            else:
-                logging.warning(f"Errore rimozione PDF da S3: {s3_result.get('error')}")
-            
-            # Cancella entities.json da S3
-            s3_entities_key = f"patients/{patient_id}/{document_type}/entities.json"
-            s3_result = self.s3_manager.delete_file(s3_entities_key)
-            if s3_result.get("success"):
-                logging.info(f"Entities JSON rimosso da S3: {s3_entities_key}")
-            else:
-                logging.warning(f"Errore rimozione entities JSON da S3: {s3_result.get('error')}")
-
-
+        # S3Manager rimosso - cancellazione S3 non più supportata
 
         # Se cartella del document_type è vuota, rimuovila
         document_type_deleted = False
