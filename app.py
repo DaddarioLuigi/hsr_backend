@@ -161,12 +161,19 @@ def get_patient_detail(patient_id):
 @app.route("/api/document/<document_id>", methods=["GET"])
 def get_document_detail(document_id):
     log_route("get_document_detail")
-    detail = document_controller.get_document_detail(document_id)
-    app.logger.debug(f"Dettaglio documento {document_id}: {detail}")
-    if detail is None:
-        app.logger.warning(f"Documento non trovato: {document_id}")
-        return jsonify({"error": "Documento non trovato"}), 404
-    return jsonify(detail)
+    try:
+        detail = document_controller.get_document_detail(document_id)
+        app.logger.debug(f"Dettaglio documento {document_id}: {detail}")
+        if detail is None:
+            app.logger.warning(f"Documento non trovato: {document_id}")
+            return jsonify({"error": "Documento non trovato"}), 404
+        return jsonify(detail)
+    except Exception as e:
+        app.logger.exception(f"Errore in get_document_detail per {document_id}")
+        print(f"[API] Errore in get_document_detail: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Errore interno: {str(e)}"}), 500
 
 @app.route("/api/document/<document_id>", methods=["PUT"])
 def update_document_entities_route(document_id):
@@ -189,6 +196,81 @@ def delete_document(document_id):
     result = document_controller.delete_document(document_id)
     status = 200 if result.get("success") else 404
     return jsonify(result), status
+
+@app.route("/api/document-types", methods=["GET"])
+def get_document_types():
+    """Restituisce la lista dei tipi di documento disponibili (escluso 'altro')."""
+    log_route("get_document_types")
+    document_types = document_controller.get_available_document_types()
+    return jsonify(document_types)
+
+@app.route("/api/document/<document_id>/change-type", methods=["POST"])
+def change_document_type(document_id):
+    """
+    Cambia il tipo di documento da 'altro' a un tipo valido e riavvia il processing.
+    """
+    log_route("change_document_type")
+    try:
+        data = request.get_json()
+        new_document_type = data.get("document_type")
+        
+        if not new_document_type:
+            return jsonify({"error": "Parametro 'document_type' obbligatorio"}), 400
+        
+        print(f"[API] Ricevuta richiesta cambio tipo documento")
+        print(f"   Document ID: {document_id}")
+        print(f"   Nuovo tipo: {new_document_type}")
+        
+        result = document_controller.change_document_type_and_reprocess(
+            document_id, new_document_type
+        )
+        
+        print(f"[API] Risultato cambio tipo: {result.get('success', False)}")
+        if result.get("success"):
+            print(f"   New document ID: {result.get('new_document_id')}")
+        else:
+            print(f"   Errore: {result.get('error')}")
+        
+        if not result.get("success"):
+            status = 400 if "error" in result else 500
+            return jsonify(result), status
+        
+        return jsonify(result), 200
+    except Exception as e:
+        app.logger.exception("Errore in change_document_type")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/document/<document_id>/re-extract", methods=["POST"])
+def re_extract_entities(document_id):
+    """
+    Rilancia l'estrazione delle entità da un documento già processato.
+    Permette di scegliere quale prompt (tipo documento) usare per l'estrazione.
+    """
+    log_route("re_extract_entities")
+    try:
+        data = request.get_json() or {}
+        extraction_document_type = data.get("document_type")  # Opzionale: se None usa il tipo esistente
+        
+        # Se specificato, valida che sia un tipo valido
+        if extraction_document_type:
+            available_types = document_controller.get_available_document_types()
+            if extraction_document_type not in available_types and extraction_document_type != "altro":
+                return jsonify({
+                    "error": f"Tipo documento '{extraction_document_type}' non valido. Tipi disponibili: {available_types}"
+                }), 400
+        
+        result = document_controller.re_extract_entities(
+            document_id, extraction_document_type
+        )
+        
+        if not result.get("success"):
+            status = 400 if "error" in result else 500
+            return jsonify(result), status
+        
+        return jsonify(result), 200
+    except Exception as e:
+        app.logger.exception("Errore in re_extract_entities")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/upload-document", methods=["POST"])
 def upload_document():

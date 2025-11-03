@@ -450,22 +450,43 @@ class FileManager:
         if os.path.exists(entities_path):
             with open(entities_path) as f:
                 data = json.load(f)
+        
+        # Leggi anche le posizioni se disponibili
+        positions_data = {}
+        metadata_path = os.path.join(folder, "entities_metadata.json")
+        if os.path.exists(metadata_path):
+            try:
+                with open(metadata_path) as f:
+                    metadata = json.load(f)
+                    positions_data = metadata.get("positions", {})
+            except Exception:
+                pass
+        
         if isinstance(data, dict):
             for idx, (k, v) in enumerate(data.items(), 1):
-                entities.append({
+                entity_obj = {
                     "id": str(idx),
                     "type": k,
                     "value": v,
                     "confidence": 1.0,
-                })
+                }
+                # Aggiungi posizione se disponibile
+                if k in positions_data and positions_data[k]:
+                    entity_obj["position"] = positions_data[k]
+                entities.append(entity_obj)
         elif isinstance(data, list):
             for idx, ent in enumerate(data, 1):
-                entities.append({
+                entity_obj = {
                     "id": str(idx),
                     "type": ent.get("type") or ent.get("entità") or "",
                     "value": ent.get("value") or ent.get("valore") or "",
                     "confidence": ent.get("confidence", 1.0),
-                })
+                }
+                # Aggiungi posizione se disponibile
+                entity_type = entity_obj["type"]
+                if entity_type in positions_data and positions_data[entity_type]:
+                    entity_obj["position"] = positions_data[entity_type]
+                entities.append(entity_obj)
 
         # Leggi meta.json per recuperare il nome file originale
         filename = pdf_file
@@ -478,11 +499,16 @@ class FileManager:
             except Exception:
                 pass
 
+        # Costruisci il percorso completo del PDF
+        pdf_path = os.path.join(folder, pdf_file)
+        relative_pdf_path = os.path.join(patient_id, document_type, pdf_file).replace("\\", "/")
+        
         return {
             "id": document_id,
             "patient_id": patient_id,
             "document_type": document_type,
             "filename": filename,
+            "pdf_path": f"/uploads/{relative_pdf_path}",
             "entities": entities,
         }
 
@@ -660,3 +686,143 @@ class FileManager:
         else:
             shutil.move(src, dst)
         return True
+
+    def change_document_type(self, document_id: str, new_document_type: str) -> dict:
+        """
+        Cambia il tipo di documento da "altro" a un nuovo tipo.
+        Sposta il file dalla cartella "altro" alla cartella del nuovo tipo.
+        
+        Args:
+            document_id: ID del documento (formato: doc_{patient_id}_{document_type}_{filenameNoExt})
+            new_document_type: Nuovo tipo di documento
+        
+        Returns:
+            dict con success, new_document_id, old_path, new_path
+        """
+        import os, shutil, logging
+        
+        # Validazione: il documento deve essere di tipo "altro"
+        if not document_id.startswith("doc_"):
+            return {"success": False, "error": "document_id non valido"}
+        
+        rest = document_id[len("doc_"):]
+        try:
+            patient_id, remainder = rest.split("_", 1)
+        except ValueError:
+            return {"success": False, "error": "Formato document_id non valido"}
+        
+        # Verifica che il documento sia di tipo "altro"
+        if remainder == "altro":
+            # Caso in cui il document_id è solo "altro" senza filename
+            filename_noext = ""
+        elif remainder.startswith("altro_"):
+            # Caso standard: "altro_{filename_noext}"
+            filename_noext = remainder[len("altro_"):]
+        else:
+            return {"success": False, "error": "Il documento non è di tipo 'altro'"}
+        
+        # Verifica che il nuovo tipo sia valido
+        possible_types = [
+            "lettera_dimissione",
+            "anamnesi",
+            "epicrisi_ti",
+            "cartellino_anestesiologico",
+            "coronarografia",
+            "intervento",
+            "eco_preoperatorio",
+            "eco_postoperatorio",
+            "tc_cuore"
+        ]
+        
+        if new_document_type not in possible_types:
+            return {"success": False, "error": f"Tipo documento '{new_document_type}' non valido"}
+        
+        # Percorsi delle cartelle
+        old_folder = os.path.join(self.UPLOAD_FOLDER, patient_id, "altro")
+        new_folder = os.path.join(self.UPLOAD_FOLDER, patient_id, new_document_type)
+        
+        if not os.path.isdir(old_folder):
+            return {"success": False, "error": "Cartella documento originale non trovata"}
+        
+        # Trova il PDF (case-insensitive)
+        import re
+        def normalize(s: str) -> str:
+            return re.sub(r'[^a-z0-9]', '', (s or '').lower())
+        
+        normalized_target = normalize(filename_noext) if filename_noext else None
+        target_pdf = None
+        
+        for f in os.listdir(old_folder):
+            if f.lower().endswith('.pdf'):
+                file_noext = os.path.splitext(f)[0]
+                # Gestisci sia documenti singoli che documenti del flusso unificato
+                if file_noext.endswith("_altro"):
+                    original_name = file_noext.replace("_altro", "")
+                    if normalized_target is None or normalize(original_name) == normalized_target:
+                        target_pdf = f
+                        break
+                else:
+                    if normalized_target is None or normalize(file_noext) == normalized_target:
+                        target_pdf = f
+                        break
+        
+        if not target_pdf:
+            return {"success": False, "error": "PDF non trovato nella cartella 'altro'"}
+        
+        # Crea la nuova cartella se non esiste
+        os.makedirs(new_folder, exist_ok=True)
+        
+        # Verifica che non esista già un documento del nuovo tipo
+        existing_pdfs = [f for f in os.listdir(new_folder) if f.lower().endswith(".pdf")]
+        if existing_pdfs:
+            return {"success": False, "error": f"Esiste già un documento di tipo '{new_document_type}' per questo paziente"}
+        
+        # Sposta il PDF
+        old_pdf_path = os.path.join(old_folder, target_pdf)
+        new_pdf_path = os.path.join(new_folder, target_pdf)
+        
+        try:
+            shutil.move(old_pdf_path, new_pdf_path)
+        except Exception as e:
+            logging.error(f"Errore spostamento PDF: {e}")
+            return {"success": False, "error": f"Errore spostamento file: {str(e)}"}
+        
+        # Sposta il file meta.json se esiste
+        old_meta_path = old_pdf_path + ".meta.json"
+        new_meta_path = new_pdf_path + ".meta.json"
+        if os.path.exists(old_meta_path):
+            try:
+                shutil.move(old_meta_path, new_meta_path)
+            except Exception as e:
+                logging.warning(f"Errore spostamento meta.json: {e}")
+        
+        # Rimuovi eventuali file di errore
+        error_folder = os.path.join(self.UPLOAD_FOLDER, patient_id, "errors")
+        error_file = os.path.join(error_folder, "altro_error.json")
+        if os.path.exists(error_file):
+            try:
+                os.remove(error_file)
+            except Exception as e:
+                logging.warning(f"Errore rimozione file errore: {e}")
+        
+        # Se la cartella "altro" è vuota, rimuovila
+        try:
+            if os.path.isdir(old_folder) and not os.listdir(old_folder):
+                shutil.rmtree(old_folder)
+        except Exception as e:
+            logging.warning(f"Errore rimozione cartella 'altro': {e}")
+        
+        # Costruisci il nuovo document_id
+        new_document_id = f"doc_{patient_id}_{new_document_type}_{filename_noext}"
+        
+        return {
+            "success": True,
+            "old_document_id": document_id,
+            "new_document_id": new_document_id,
+            "patient_id": patient_id,
+            "old_document_type": "altro",
+            "new_document_type": new_document_type,
+            "filename": target_pdf,
+            "old_path": old_pdf_path,
+            "new_path": new_pdf_path
+        }
