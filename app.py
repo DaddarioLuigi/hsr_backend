@@ -7,15 +7,25 @@ from flask_cors import CORS
 from datetime import datetime
 from utils.progress import ProgressStore
 from services.document_upload_service import DocumentUploadService
+from extension import db
+from models.response import Response
+
 
 
 # Configura logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
 
+
 app = Flask(__name__)
 # Abilita CORS per tutte le rotte e supporta le credenziali
 origins = [o.strip() for o in os.getenv("FRONTEND_ORIGINS", "http://localhost:3000,https://v0-vercel-frontend-development-weld.vercel.app").split(",") if o.strip()]
 CORS(app, origins=origins, supports_credentials=True)
+
+# Configurazione database PostgreSQL
+DATABASE_URL = os.getenv("DATABASE_URL")
+app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db.init_app(app)
 
 EXPORT_FOLDER = os.getenv("EXPORT_FOLDER", "./export")
 UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "./uploads")
@@ -63,6 +73,7 @@ def update_entities():
     log_route("update_entities")
     data = request.json
     app.logger.debug(f"Payload update_entities: {data}")
+
     response = document_controller.update_entities_for_document(
         data.get("patient_id"),
         data.get("document_type"),
@@ -163,6 +174,10 @@ def get_document_detail(document_id):
     log_route("get_document_detail")
     detail = document_controller.get_document_detail(document_id)
     app.logger.debug(f"Dettaglio documento {document_id}: {detail}")
+
+    response_obj=Response.update_response(document_id, detail.get("entities"))
+    app.logger.debug(f"Risposta db: {response_obj}")
+
     if detail is None:
         app.logger.warning(f"Documento non trovato: {document_id}")
         return jsonify({"error": "Documento non trovato"}), 404
@@ -178,9 +193,18 @@ def update_document_entities_route(document_id):
         app.logger.error("Formato entità non valido")
         return jsonify({"success": False, "message": "Formato entità non valido"}), 400
     ok = document_controller.update_document_entities(document_id, entities)
+    
     if not ok:
         app.logger.error(f"Errore salvataggio entità documento {document_id}")
         return jsonify({"success": False, "message": "Errore durante il salvataggio"}), 500
+
+    try:
+        update_obj = Response.increment_correction(document_id)
+        app.logger.debug(f"Risposta increment_correction: {update_obj}")
+    except Exception as e:
+        app.logger.exception(
+            f"Errore durante l'incremento delle correzioni per {document_id}: {e}"
+        )
     return jsonify({"success": True, "document_id": document_id, "message": "Entità aggiornate con successo."})
 
 @app.route("/api/document/<document_id>", methods=["DELETE"])
@@ -216,7 +240,13 @@ def upload_document():
             file.filename = secure_filename(file.filename)
             result = upload_service.process_upload(file, user_id)
             results.append(result.to_dict())
-        
+
+            #Popoliamo il db con le response
+            response_db=Response.add_response(
+                id_document=result.document_id,
+            )
+            app.logger.debug(f"Risposta db: {response_db}")
+
         return jsonify(results[0] if len(results) == 1 else results)
     except Exception as e:
         app.logger.exception("Errore in upload_document")
@@ -346,5 +376,8 @@ def health_check():
     return jsonify(health_status), status_code
 
 if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
+        logging.info("Tabelle database create/verificate")
     logging.info("Avvio app in locale su porta 8080")
     app.run(host='0.0.0.0', port=8080, debug=True)
