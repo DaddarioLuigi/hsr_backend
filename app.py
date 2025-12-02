@@ -8,7 +8,7 @@ from datetime import datetime
 from utils.progress import ProgressStore
 from services.document_upload_service import DocumentUploadService
 from extension import db
-from models.Response import Response
+from models.response import Response
 
 
 
