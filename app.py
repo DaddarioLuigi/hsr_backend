@@ -22,7 +22,7 @@ origins = [o.strip() for o in os.getenv("FRONTEND_ORIGINS", "http://localhost:30
 CORS(app, origins=origins, supports_credentials=True)
 
 # Configurazione database PostgreSQL
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:IfVBYLGfZdXEDVYPXWhipcEhIYAHTGyw@switchback.proxy.rlwy.net:51809/railway")
+DATABASE_URL = os.getenv("DATABASE_URL")
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
