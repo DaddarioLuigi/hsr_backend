@@ -7,15 +7,25 @@ from flask_cors import CORS
 from datetime import datetime
 from utils.progress import ProgressStore
 from services.document_upload_service import DocumentUploadService
+from extensions import db
+from models.Response import Response
+
 
 
 # Configura logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
 
+
 app = Flask(__name__)
 # Abilita CORS per tutte le rotte e supporta le credenziali
 origins = [o.strip() for o in os.getenv("FRONTEND_ORIGINS", "http://localhost:3000,https://v0-vercel-frontend-development-weld.vercel.app").split(",") if o.strip()]
 CORS(app, origins=origins, supports_credentials=True)
+
+# Configurazione database PostgreSQL
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://postgres:password@localhost:5432/ALFIERI")
+app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db.init_app(app)
 
 EXPORT_FOLDER = os.getenv("EXPORT_FOLDER", "./export")
 UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "./uploads")
@@ -63,6 +73,7 @@ def update_entities():
     log_route("update_entities")
     data = request.json
     app.logger.debug(f"Payload update_entities: {data}")
+
     response = document_controller.update_entities_for_document(
         data.get("patient_id"),
         data.get("document_type"),
@@ -161,19 +172,16 @@ def get_patient_detail(patient_id):
 @app.route("/api/document/<document_id>", methods=["GET"])
 def get_document_detail(document_id):
     log_route("get_document_detail")
-    try:
-        detail = document_controller.get_document_detail(document_id)
-        app.logger.debug(f"Dettaglio documento {document_id}: {detail}")
-        if detail is None:
-            app.logger.warning(f"Documento non trovato: {document_id}")
-            return jsonify({"error": "Documento non trovato"}), 404
-        return jsonify(detail)
-    except Exception as e:
-        app.logger.exception(f"Errore in get_document_detail per {document_id}")
-        print(f"[API] Errore in get_document_detail: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": f"Errore interno: {str(e)}"}), 500
+    detail = document_controller.get_document_detail(document_id)
+    app.logger.debug(f"Dettaglio documento {document_id}: {detail}")
+
+    response_obj=Response.update_response(document_id, detail.get("entities"))
+    app.logger.debug(f"Risposta db: {response_obj}")
+
+    if detail is None:
+        app.logger.warning(f"Documento non trovato: {document_id}")
+        return jsonify({"error": "Documento non trovato"}), 404
+    return jsonify(detail)
 
 @app.route("/api/document/<document_id>", methods=["PUT"])
 def update_document_entities_route(document_id):
@@ -185,9 +193,18 @@ def update_document_entities_route(document_id):
         app.logger.error("Formato entità non valido")
         return jsonify({"success": False, "message": "Formato entità non valido"}), 400
     ok = document_controller.update_document_entities(document_id, entities)
+    
     if not ok:
         app.logger.error(f"Errore salvataggio entità documento {document_id}")
         return jsonify({"success": False, "message": "Errore durante il salvataggio"}), 500
+
+    try:
+        update_obj = Response.increment_correction(document_id)
+        app.logger.debug(f"Risposta increment_correction: {update_obj}")
+    except Exception as e:
+        app.logger.exception(
+            f"Errore durante l'incremento delle correzioni per {document_id}: {e}"
+        )
     return jsonify({"success": True, "document_id": document_id, "message": "Entità aggiornate con successo."})
 
 @app.route("/api/document/<document_id>", methods=["DELETE"])
@@ -196,81 +213,6 @@ def delete_document(document_id):
     result = document_controller.delete_document(document_id)
     status = 200 if result.get("success") else 404
     return jsonify(result), status
-
-@app.route("/api/document-types", methods=["GET"])
-def get_document_types():
-    """Restituisce la lista dei tipi di documento disponibili (escluso 'altro')."""
-    log_route("get_document_types")
-    document_types = document_controller.get_available_document_types()
-    return jsonify(document_types)
-
-@app.route("/api/document/<document_id>/change-type", methods=["POST"])
-def change_document_type(document_id):
-    """
-    Cambia il tipo di documento da 'altro' a un tipo valido e riavvia il processing.
-    """
-    log_route("change_document_type")
-    try:
-        data = request.get_json()
-        new_document_type = data.get("document_type")
-        
-        if not new_document_type:
-            return jsonify({"error": "Parametro 'document_type' obbligatorio"}), 400
-        
-        print(f"[API] Ricevuta richiesta cambio tipo documento")
-        print(f"   Document ID: {document_id}")
-        print(f"   Nuovo tipo: {new_document_type}")
-        
-        result = document_controller.change_document_type_and_reprocess(
-            document_id, new_document_type
-        )
-        
-        print(f"[API] Risultato cambio tipo: {result.get('success', False)}")
-        if result.get("success"):
-            print(f"   New document ID: {result.get('new_document_id')}")
-        else:
-            print(f"   Errore: {result.get('error')}")
-        
-        if not result.get("success"):
-            status = 400 if "error" in result else 500
-            return jsonify(result), status
-        
-        return jsonify(result), 200
-    except Exception as e:
-        app.logger.exception("Errore in change_document_type")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/document/<document_id>/re-extract", methods=["POST"])
-def re_extract_entities(document_id):
-    """
-    Rilancia l'estrazione delle entità da un documento già processato.
-    Permette di scegliere quale prompt (tipo documento) usare per l'estrazione.
-    """
-    log_route("re_extract_entities")
-    try:
-        data = request.get_json() or {}
-        extraction_document_type = data.get("document_type")  # Opzionale: se None usa il tipo esistente
-        
-        # Se specificato, valida che sia un tipo valido
-        if extraction_document_type:
-            available_types = document_controller.get_available_document_types()
-            if extraction_document_type not in available_types and extraction_document_type != "altro":
-                return jsonify({
-                    "error": f"Tipo documento '{extraction_document_type}' non valido. Tipi disponibili: {available_types}"
-                }), 400
-        
-        result = document_controller.re_extract_entities(
-            document_id, extraction_document_type
-        )
-        
-        if not result.get("success"):
-            status = 400 if "error" in result else 500
-            return jsonify(result), status
-        
-        return jsonify(result), 200
-    except Exception as e:
-        app.logger.exception("Errore in re_extract_entities")
-        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/upload-document", methods=["POST"])
 def upload_document():
@@ -298,7 +240,13 @@ def upload_document():
             file.filename = secure_filename(file.filename)
             result = upload_service.process_upload(file, user_id)
             results.append(result.to_dict())
-        
+
+            #Popoliamo il db con le response
+            response_db=Response.add_response(
+                id_document=result.document_id,
+            )
+            app.logger.debug(f"Risposta db: {response_db}")
+
         return jsonify(results[0] if len(results) == 1 else results)
     except Exception as e:
         app.logger.exception("Errore in upload_document")
@@ -428,5 +376,8 @@ def health_check():
     return jsonify(health_status), status_code
 
 if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
+        logging.info("Tabelle database create/verificate")
     logging.info("Avvio app in locale su porta 8080")
     app.run(host='0.0.0.0', port=8080, debug=True)
