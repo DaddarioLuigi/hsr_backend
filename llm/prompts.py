@@ -104,7 +104,9 @@ class PromptManager:
                 "cognome": { "type": "string" },
                 "data_di_nascita": { "type": "string", "format": "date" },
                 "data_esame": { "type": "string", "format": "date" },
-                "coronarografia text": { "type": "string" },
+                # Testo completo del referto di coronarografia
+                # NOTA: in Excel la colonna si chiama 'coronarografia_text'
+                "coronarografia_text": { "type": "string" },
                 "coro_tc_stenosi50": { "type": "boolean" },
                 "coro_iva_stenosi50": { "type": "boolean" },
                 "coro_cx_stenosi50": { "type": "boolean" },
@@ -159,7 +161,9 @@ class PromptManager:
                 "cognome": { "type": "string" },
                 "data_di_nascita": { "type": "string", "format": "date" },
                 "data_esame": { "type": "string", "format": "date" },
-                "tac text": { "type": "string" },
+                # Testo completo del referto TC Cuore
+                # NOTA: in Excel la colonna si chiama 'tac_text'
+                "tac_text": { "type": "string" },
                 "tc_tc_stenosi50": { "type": "boolean" },
                 "tc_iva_stenosi50": { "type": "boolean" },
                 "tc_cx_stenosi50": { "type": "boolean" },
@@ -323,42 +327,42 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre le se
 | nome                                       | Text              | Nome proprio del paziente.                                                                                                                      |
 | cognome                                    | Text              | Cognome del paziente.                                                                                                                           |
 | sesso                                      | Categorical_MF    | Sesso biologico del paziente (M = Maschio, F = Femmina).                                                                                        |
-| numero di telefono                         | Text              | Recapito telefonico del paziente o di un contatto di riferimento.                                                                              |
-| età al momento dell'intervento             | Number            | Età del paziente calcolata alla data dell’intervento chirurgico.                                                                               |
+| numero_di_telefono                         | Text              | Recapito telefonico del paziente o di un contatto di riferimento.                                                                              |
+| eta_al_momento_dell_intervento            | Number            | Età del paziente calcolata alla data dell’intervento chirurgico.                                                                               |
 | data_di_nascita                            | Date              | Data di nascita del paziente.                                                                                                                   |
 | Diagnosi                                   | Text              | Diagnosi principale alla base dell'indicazione chirurgica.                                                                                      |
 | Anamnesi                                   | Text              | Anamnesi patologica remota e prossima, utile per la valutazione del rischio operatorio.                                                        |
-| Motivo ricovero                            | Text              | Indicazione clinica per il ricovero in Cardiochirurgia.                                                                                         |
+| Motivo_ricovero                            | Text              | Indicazione clinica per il ricovero in Cardiochirurgia.                                                                                         |
 | classe_nyha                                | Categorical_1234  | Classe funzionale NYHA per scompenso cardiaco (I-IV), definisce la gravità dei sintomi.                                                        |
 | angor                                      | Boolean           | Presenza di angina pectoris (dolore toracico di origine ischemica).                                                                            |
-| STEMI/NSTEMI                               | Boolean           | Presenza di infarto miocardico acuto con/senza sopraslivellamento del tratto ST.                                                               |
+| STEMI_NSTEMI                               | Boolean           | Presenza di infarto miocardico acuto con/senza sopraslivellamento del tratto ST.                                                               |
 | scompenso_cardiaco_nei_3_mesi_precedenti   | Boolean           | Episodi di scompenso cardiaco documentati nei 3 mesi precedenti l’intervento.                                                                  |
 | fumo                                       | Categorical_012   | Abitudine al fumo (0 = mai fumato, 1 = ex-fumatore, 2 = fumatore attivo).                                                                      |
-| diabete                                    | Boolean           | Presenza di diabete mellito noto.                                                                                                               |
-| ipertensione                               | Boolean           | Presenza di ipertensione arteriosa.                                                                                                             |
-| dislipidemia                               | Boolean           | Presenza di dislipidemia (colesterolo e/o trigliceridi elevati).                                                                               |
+| diabete                                    | Boolean           | Presenza di diabete mellito noto. Oltre al testo esplicito, imposta `diabete = true` se la terapia comprende farmaci specifici per il diabete (es. insulina, metformina, anti-SGLT2, ARNI), anche in assenza di una frase che menzioni esplicitamente “diabete”. |
+| ipertensione                               | Boolean           | Presenza di ipertensione arteriosa. Oltre al testo, se la terapia comprende ACE-inibitori (`aceinib`), sartani (`sartanici`) o calcio-antagonisti (`caantag`), imposta `ipertensione = true` anche in assenza di una dicitura esplicita. |
+| dislipidemia                               | Boolean           | Presenza di dislipidemia (colesterolo e/o trigliceridi elevati). Inoltre, se i valori di colesterolo o trigliceridi negli esami di laboratorio risultano alterati, oppure se è presente una terapia con **statine**, imposta `dislipidemia = true`. |
 | BPCO                                       | Boolean           | Presenza di broncopneumopatia cronica ostruttiva.                                                                                               |
 | stroke_pregresso                           | Boolean           | Precedente episodio di ictus cerebrale ischemico o emorragico.                                                                                  |
 | TIA_pregresso                              | Boolean           | Episodio pregresso di attacco ischemico transitorio (TIA).                                                                                      |
 | vasculopatiaperif                          | Boolean           | Malattia vascolare periferica documentata (es. arteriopatia arti inferiori).                                                                   |
 | neoplasia_pregressa                        | Boolean           | Presenza di neoplasie trattate in passato.                                                                                                      |
 | irradiazionetoracica                       | Boolean           | Pregressa radioterapia al torace, rilevante per effetti tardivi su cuore e vasi.                                                               |
-| insufficienza_renale_cronica               | Boolean           | Presenza di insufficienza renale cronica diagnosticata.                                                                                         |
+| insufficienza_renale_cronica               | Boolean           | Presenza di insufficienza renale cronica diagnosticata. Inoltre, se è riportato un valore di **eGFR ml/min** < 60, imposta `insufficienza_renale_cronica = true` anche senza frase esplicita. |
 | familiarita_cardiovascolare                | Boolean           | Familiarità per malattie cardiovascolari premature (prima dei 55 anni per uomini, 65 per donne).                                                |
 | limitazione_mobilita                       | Boolean           | Presenza di limitazioni significative alla mobilità (es. pazienti allettati).                                                                  |
 | endocardite                                | Boolean           | Pregressa o attiva endocardite infettiva, rilevante per indicazione chirurgica.                                                                |
 | ritmo_all_ingresso                         | Categorical_012   | Ritmo cardiaco al momento del ricovero (0 = ritmo sinusale, 1 = FA, 2 = altro).                                                                 |
 | fibrillazione_atriale                      | Categorical_012   | Presenza di fibrillazione atriale (0 = mai, 1 = parossistica, 2 = permanente/persistente).                                                     |
 | dialisi                                    | Boolean           | Paziente in trattamento emodialitico o peritoneale.                                                                                             |
-| elettivo_urgenza_emergenza                 | Categorical_012   | Tipo di intervento (0 = elettivo, 1 = urgente, 2 = emergenza).                                                                                   |
+| elettivo_urgenza_emergenza                 | Categorical_012   | Tipo di intervento (0 = elettivo, 1 = urgente, 2 = emergenza).                                                                                  |
 | pm                                         | Boolean           | Presenza di pacemaker.                                                                                                                          |
 | crt                                        | Boolean           | Presenza di terapia di resincronizzazione cardiaca (CRT).                                                                                       |
 | icd                                        | Boolean           | Presenza di defibrillatore impiantabile (ICD).                                                                                                  |
 | pci_pregressa                              | Boolean           | Precedente angioplastica coronarica percutanea (PCI).                                                                                           |
 | REDO                                       | Boolean           | Intervento cardiochirurgico di revisione (non prima chirurgia).                                                                                |
-| Anno REDO                                  | Date              | Anno in cui è stato eseguito l'intervento REDO precedente.                                                                                      |
-| Tipo di REDO                               | Text              | Descrizione del tipo di intervento REDO eseguito.                                                                                               |
-| Terapia                                    | Text              | Terapia farmacologica in atto al momento del ricovero.                                                                                          |
+| Anno_REDO                                  | Date              | Anno in cui è stato eseguito l'intervento REDO precedente.                                                                                      |
+| Tipo_di_REDO                               | Text              | Descrizione del tipo di intervento REDO eseguito.                                                                                               |
+| Terapia                                    | Text              | Terapia farmacologica in atto al momento del ricovero. Deve riferirsi alla situazione **pre-operatoria**, quindi utilizza le date per escludere terapia chiaramente introdotta solo alla dimissione. |
 | lasix                                      | Boolean           | Uso documentato di furosemide (Lasix).                                                                                                          |
 | lasix_dosaggio                             | Number            | Dosaggio giornaliero di furosemide in mg.                                                                                                       |
 | nitrati                                    | Boolean           | Assunzione di nitrati (vasodilatatori usati per l'angina).                                                                                      |
@@ -369,38 +373,39 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre le se
 | betabloc                                   | Boolean           | Uso di beta-bloccanti.                                                                                                                          |
 | sartanici                                  | Boolean           | Uso di sartani (ARBs).                                                                                                                          |
 | caantag                                    | Boolean           | Uso di calcio-antagonisti.                                                                                                                      |
-| esami_all_ingresso                         | Text              | Risultati di laboratorio e strumentali al momento dell’ingresso.                                                                               |
+| esami_laboratorio                         | Text              | Risultati di laboratorio e strumentali. Quando possibile, indica se si riferiscono al periodo **pre-operatorio** o **alla dimissione**, sfruttando la data degli esami rispetto a `data_intervento` e `data_dimissione_cch`. |
 | Decorso_post_operatorio                    | Text              | Descrizione del decorso clinico successivo all’intervento chirurgico.                                                                          |
-| IABP/ECMO/IMPELLA                          | Boolean           | Necessità di supporto meccanico circolatorio (IABP, ECMO o Impella).                                                                           |
+| IABP_ECMO_IMPELLA                          | Boolean           | Necessità di supporto meccanico circolatorio (IABP, ECMO o Impella).                                                                           |
 | Inotropi                                   | Boolean           | Necessità di farmaci inotropi positivi nel post-operatorio.                                                                                     |
 | secondo_intervento                         | Boolean           | Esecuzione di un secondo intervento durante la degenza attuale.                                                                                |
 | Tipo_secondo_intervento                    | Text              | Tipo e motivazione del secondo intervento chirurgico.                                                                                           |
-| II_Run                                     | Boolean           | Presenza di secondo passaggio in circolazione extracorporea (CEC).                                                                             |
+| II_Run_CEC                                 | Boolean           | Presenza di secondo passaggio in circolazione extracorporea (CEC).                                                                             |
 | Causa_II_Run_CEC                           | Text              | Motivazione per il secondo utilizzo della CEC.                                                                                                  |
-| LCOS                                       | Boolean           | Sindrome da bassa portata cardiaca (Low Cardiac Output Syndrome) post-operatoria.                                                               |
+| LCOS                                       | Boolean           | Sindrome da bassa portata cardiaca (Low Cardiac Output Syndrome) post-operatoria. Imposta `LCOS = true` se il testo descrive chiaramente bassa portata o se sono presenti inotropi ad alte dosi e/o IABP/ECMO/IMPELLA. |
 | Impianto_PM_post_intervento                | Boolean           | Necessità di impianto di pacemaker dopo l’intervento.                                                                                           |
 | Stroke_TIA_post_op                         | Boolean           | Evento neurologico ischemico (TIA/stroke) avvenuto dopo l’intervento.                                                                          |
-| Necessità_di_trasfusioni                   | Boolean           | Necessità di trasfusioni ematiche post-intervento.                                                                                              |
+| Necessita_di_trasfusioni                   | Boolean           | Necessità di trasfusioni ematiche post-intervento.                                                                                              |
 | IRA                                        | Boolean           | Insufficienza renale acuta insorta nel post-operatorio.                                                                                         |
 | Insufficienza_respiratoria                 | Boolean           | Insorgenza di insufficienza respiratoria nel post-operatorio.                                                                                   |
 | FA_di_nuova_insorgenza                     | Boolean           | Fibrillazione atriale di nuova insorgenza nel post-operatorio.                                                                                  |
 | Ritmo_alla_dimissione                      | Categorical_012   | Ritmo cardiaco documentato alla dimissione (0 = sinusale, 1 = FA, 2 = altro).                                                                   |
-| H_Stay_giorni (da intervento a dimissione) | Number            | Durata della degenza in giorni, calcolata dall’intervento alla dimissione.                                                                      |
+| H_Stay_giorni_da_intervento_a_dimissione   | Number            | Durata della degenza in giorni, calcolata dall’intervento alla dimissione.                                                                      |
 | Morte                                      | Boolean           | Evento di decesso durante la degenza cardiochirurgica.                                                                                          |
 | Causa_morte                                | Text              | Causa clinica del decesso (es. sepsi, shock cardiogeno, ecc.).                                                                                  |
 | data_morte                                 | Date              | Data del decesso, se avvenuto.                                                                                                                  |
-| esami_alla_dimissione                      | Text              | Risultati di laboratorio e strumentali prima della dimissione.                                                                                  |
-| terapia_alla_dimissione                    | Text              | Terapia farmacologica prescritta alla dimissione.                                                                                               |
+| esami_laboratorio_dimissione              | Text              | Risultati di laboratorio e strumentali prima della dimissione (usa solo esami con data successiva all’intervento e prossima alla dimissione).  |
+| Terapia_dimissione                        | Text              | Terapia farmacologica prescritta alla dimissione (usa solo la terapia associata temporalmente alla dimissione, non quella pre-operatoria).     |
 
 ---
 
 ### **Istruzioni IMPORTANTI:**
 
-- Ragiona considerando **frase per frase**.
+- Ragiona considerando **frase per frase** e sfrutta sempre le **date** (ingresso, intervento, dimissione, date degli esami) per distinguere ciò che è **pre-operatorio** da ciò che è **post-operatorio/dimissione**.
 - Non estrarre **nessuna entità** diversa da quelle elencate.
 - Se un'entità non è presente nella lettera, **non inventarla** e **non includerla** nel risultato.
-- Attenzione però i nomi delle entità che vedi sopra sono in alcuni casi degli acronimi o diminutivi delle entità.
-- Cerca tutte le entità indicate
+- Usa le regole derivate da esami e terapia come indicato sopra (per `diabete`, `dislipidemia`, `insufficienza_renale_cronica`, `ipertensione`, `LCOS`, ecc.), ma **non** impostare mai un valore se mancano completamente dati coerenti nel testo o nei parametri.
+- I nomi delle entità possono essere acronimi o forme abbreviate: mappa sempre correttamente il significato clinico al nome di entità definito nella tabella.
+- Cerca tutte le entità indicate.
 - Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con **due chiavi**:
     - `"entità"`: il nome dell'entità
     - `"valore"`: il valore estratto dell'entità
@@ -465,7 +470,7 @@ Sei un medico specializzato in cardiologia interventistica. Il tuo compito è es
 | cognome                  | Text              |
 | data_di_nascita          | Date              |
 | data_esame               | Date              |
-| coronarografia text      | Text              |
+| coronarografia_text      | Text              |
 | coro_tc_stenosi50        | Boolean           |
 | coro_iva_stenosi50       | Boolean           |
 | coro_cx_stenosi50        | Boolean           |
@@ -499,7 +504,7 @@ Esempio di output:
   { "entità": "cognome", "valore": "RICCA" },
   { "entità": "data_di_nascita", "valore": "17/02/1966" },
   { "entità": "data_esame", "valore": "12/06/2025" },
-  { "entità": "coronarografia text", "valore": "Paziente sottoposto a coronarografia..." },
+  { "entità": "coronarografia_text", "valore": "Paziente sottoposto a coronarografia..." },
   { "entità": "coro_tc_stenosi50", "valore": true },
   { "entità": "coro_iva_stenosi50", "valore": false }
   ...
@@ -507,17 +512,21 @@ Esempio di output:
 ''',
         "eco_preoperatorio": '''
 Sei un medico specializzato in cardiochirurgia.
-Estrai le seguenti entità dall’ecocardiogramma preoperatorio:
+Estrai le seguenti entità dall’ecocardiogramma **preoperatorio**:
 
 - n_cartella (Number), nome (Text), cognome (Text), data_di_nascita (Date)
 - altezza (Number), peso (Number), bmi (Number), bsa (Number)
 - data_esame (Date)
 - eco_text (Text)              # riassunto/valutazione
-- parametri (Text)             # se trovi tabelle/elenco parametri non standard
+- parametri (Text)             # se trovi tabelle/elenco parametri non standard o tabelle strutturate
 
 Istruzioni:
-- Se trovi tabelle/elenco parametri (es. "FE: 45 %", "TAPSE: 17 mm"), estrai ciascuna coppia nel campo **parametri** come testo strutturato "chiave: valore" separati da punto e virgola.
-- Output = lista JSON di {"entità": <nome>, "valore": <valore>}. Nessun altro testo.
+- Considera che molti parametri ecocardiografici appartengono a **sezioni** specifiche (es. Ventricolo sinistro, Ventricolo destro, Valvola aortica, Valvola mitrale, Valvola tricuspide, Valvola polmonare).
+- Quando riporti coppie chiave‑valore in **parametri**, anteponi sempre il nome della sezione alla variabile, in forma `Sezione_nome_variabile`.
+  - Esempi: `Ventricolo_sinistro_GLS: -18`, `Ventricolo_sinistro_FE: 45`, `Valvola_aortica_gradiente_max_aortica: 40`, `Valvola_mitralica_TAPSE: 17`.
+- Se trovi tabelle/elenco parametri (es. "FE: 45 %", "TAPSE: 17 mm"), estrai ciascuna coppia nel campo **parametri** come testo strutturato `"Sezione_nome_variabile: valore"` separati da **punto e virgola**.
+- Non aggiungere unità di misura in `valore` (solo il numero o la stringa pulita).
+- Output = **solo** una lista JSON di oggetti `{"entità": <nome>, "valore": <valore>}`. Nessun altro testo.
 ''',
         "eco_postoperatorio": '''
 Sei un medico specializzato in cardiochirurgia. Estrai ESCLUSIVAMENTE:
@@ -526,7 +535,13 @@ Sei un medico specializzato in cardiochirurgia. Estrai ESCLUSIVAMENTE:
 - eco_text (Text)
 - parametri (Text)  # opzionale: se presenti tabelle/elenco parametri
 
-Output: lista JSON di {"entità": <nome>, "valore": <valore>}. Non inventare.
+Regole per `parametri`:
+- Se presenti tabelle parametriche, utilizza la stessa logica dell’ecocardiogramma preoperatorio:
+  - anteponi il nome della sezione (es. Ventricolo_sinistro, Valvola_aortica, Valvola_mitralica, ecc.) al nome della variabile;
+  - usa il formato `"Sezione_nome_variabile: valore"` separando le coppie con `;`.
+- Non includere unità di misura nel valore.
+
+Output: **solo** una lista JSON di `{"entità": <nome>, "valore": <valore>}`. Non inventare campi assenti.
 ''',
         "tc_cuore": '''
 Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre **esclusivamente** le seguenti entità dal referto di TC Cuore:
@@ -540,7 +555,7 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre **esc
 | cognome              | Text    | Cognome del paziente                             |
 | data_di_nascita      | Date    | Data di nascita del paziente                     |
 | data_esame           | Date    | Data di esecuzione della TC Cuore                |
-| tac text             | Text    | Descrizione completa del referto TC              |
+| tac_text             | Text    | Descrizione completa del referto TC              |
 | tc_tc_stenosi50      | Boolean | Stenosi > 50% su tronco comune                   |
 | tc_iva_stenosi50     | Boolean | Stenosi > 50% su IVA                             |
 | tc_cx_stenosi50      | Boolean | Stenosi > 50% su CX                              |
@@ -606,26 +621,30 @@ REGOLE:
 - Non inventare. Se un campo non è presente, omettilo.
 - Accetta sinonimi comuni (DOB→data_di_nascita; “centrale/periferica” per cannulazionearteriosa).
 - Se sono presenti più interventi ma non strutturati, popola almeno i campi “intervento 1 / protesi 1 / …”.
+- Per `Percorso` e per l’eventuale campo `Accesso` (se nel testo è chiaramente specificato l’accesso), usa descrizioni standardizzate quando possibile:
+  - Percorso: es. "Chirurgico", "Transcatetere".
+  - Accesso: es. "transfemorale", "minitoracotomia", "ministernotomia".
 ''',
     "anamnesi": '''
-    Sei un medico. Estrai ESCLUSIVAMENTE le seguenti entità dall'ANAMNESI:
-
+    Sei un medico. Estrai ESCLUSIVAMENTE le seguenti entità dall'ANAMNESI (periodo **preoperatorio**):
+    
     - n_cartella (Number), nome (Text), cognome (Text), data_di_nascita (Date)
-    - Terapia (Text)                 # terapia in atto all'ingresso
+    - Terapia (Text)                 # terapia in atto all'ingresso, prima dell'intervento
     - Allergie (Text)                # farmacoallergie/intolleranze
     - Abitudini (Text)               # fumo/alcol/altro, se presenti
     - Comorbidita (Text)             # elenco o riassunto
-    - esami_all_ingresso (Text)      # labs/strumentali al ricovero
+    - esami_laboratorio (Text)      # labs/strumentali al ricovero preoperatorio
     - parametri (Text)               # se presenti tabelle/elenco parametri: riportali come "chiave: valore" separati da "; "
-
+    
     REGOLE:
+    - Considera solo informazioni chiaramente riferite alla fase **preoperatoria** (in base alle date nel documento).
     - Output = LISTA JSON di oggetti: { "entità": "<nome>", "valore": "<valore>" } — niente altro.
     - NON inventare. Se un campo non è presente, omettilo.
     - Se trovi tabelle/elenco (es. "Creatinina: 1.2 mg/dL", "FE: 45 %"), concatenali in **parametri** senza unità, in forma "Creatinina: 1.2; FE: 45".
 ''',
     "epicrisi_ti": '''
-    Sei un medico. Estrai ESCLUSIVAMENTE le seguenti entità dall’EPICRISI di Terapia Intensiva:
-
+    Sei un medico. Estrai ESCLUSIVAMENTE le seguenti entità dall’EPICRISI di Terapia Intensiva (periodo post‑operatorio immediato):
+    
     - n_cartella (Number), nome (Text), cognome (Text)
     - data_intervento (Date)
     - Decorso_post_operatorio (Text)        # ventilazione, emodinamica, complicanze, drenaggi, diuresi, etc.
@@ -633,7 +652,7 @@ REGOLE:
     - eventi_avversi_TI (Text)
     - data_dimissione_cch (Date)
     - parametri (Text)  # se presenti tabelle/elenco parametri, riportali come "chiave: valore" separati da "; "
-
+    
     REGOLE:
     - Output = LISTA JSON di oggetti { "entità": "<nome>", "valore": "<valore>" } — niente altro.
     - NON inventare: ometti i campi assenti.

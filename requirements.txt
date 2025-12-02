@@ -60,3 +60,4 @@ gunicorn
 rapidfuzz==3.2.0
 flask-sqlalchemy==3.1.1
 SQLAlchemy==2.0.36
+psycopg2-binary==2.9.10
