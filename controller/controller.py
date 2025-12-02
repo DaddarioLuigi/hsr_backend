@@ -193,11 +193,11 @@ class DocumentController:
                     entities_for_save[key] = data["value"]
                 else:
                     entities_for_save[key] = data
-            # Salva anche le posizioni in un file separato per non rompere la compatibilità
-            positions_data = {
-                key: data.get("position") if isinstance(data, dict) else None
-                for key, data in entities_with_positions.items()
-            }
+                # Salva anche le posizioni in un file separato per non rompere la compatibilità
+                positions_data = {
+                    key: data.get("positions") if isinstance(data, dict) else None
+                    for key, data in entities_with_positions.items()
+                }
         except Exception as e:
             logging.warning(f"Errore durante l'estrazione delle posizioni: {e}")
             entities_for_save = entities
