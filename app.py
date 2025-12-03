@@ -270,13 +270,10 @@ def uploaded_file(filename):
     dir_path = os.path.dirname(fullpath)
     expected_name = os.path.basename(fullpath)
     if os.path.isdir(dir_path):
-        files_in_dir = os.listdir(dir_path)
-        app.logger.debug(f"File nella cartella {dir_path}: {files_in_dir}")
-        for f in files_in_dir:
+        for f in os.listdir(dir_path):
             if f.lower() == expected_name.lower() and f.lower().endswith('.pdf'):
-                app.logger.info(f"File trovato con case diverso: {f} invece di {expected_name}")
                 return send_file(os.path.join(dir_path, f), conditional=True, mimetype='application/pdf')
-    app.logger.warning(f"File non trovato: {fullpath} (richiesto: {filename})")
+    app.logger.warning(f"File non trovato: {fullpath}")
     abort(404)
 
 
