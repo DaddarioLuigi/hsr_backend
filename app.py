@@ -28,7 +28,7 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 
 EXPORT_FOLDER = os.getenv("EXPORT_FOLDER", "./export")
-UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "./uploads")
+UPLOAD_FOLDER = os.path.abspath(os.getenv("UPLOAD_FOLDER", "./uploads"))
 
 os.makedirs(EXPORT_FOLDER, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -256,14 +256,16 @@ def upload_document():
 def uploaded_file(filename):
     log_route("uploaded_file")
     try:
+        filename = filename.lstrip('/')
         fullpath = safe_join(UPLOAD_FOLDER, filename)
-    except Exception:
+        fullpath = os.path.abspath(fullpath)
+    except Exception as e:
+        app.logger.error(f"Errore safe_join per {filename}: {e}")
         abort(400)
-    # Enforce path inside UPLOAD_FOLDER
-    if not os.path.realpath(fullpath).startswith(os.path.realpath(UPLOAD_FOLDER)):
+    if not fullpath.startswith(os.path.abspath(UPLOAD_FOLDER)):
         abort(403)
     if os.path.isfile(fullpath):
-        return send_file(fullpath, conditional=True)
+        return send_file(fullpath, conditional=True, mimetype='application/pdf')
     app.logger.warning(f"File non trovato: {fullpath}")
     abort(404)
 
