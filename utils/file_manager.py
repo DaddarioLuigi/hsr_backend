@@ -501,6 +501,9 @@ class FileManager:
 
         # Costruisci il percorso completo del PDF
         pdf_path = os.path.join(folder, pdf_file)
+        if not os.path.exists(pdf_path):
+            logging.warning(f"PDF non trovato in {pdf_path} per document_id {document_id}")
+            return None
         relative_pdf_path = os.path.join(patient_id, document_type, pdf_file).replace("\\", "/")
         
         return {
