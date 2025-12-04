@@ -144,12 +144,14 @@ class DocumentController:
         filepath: str,
         patient_id: str,
         document_type: str,
-        provided_anagraphic: dict = None
+        provided_anagraphic: dict = None,
+        text: str = None
     ) -> dict:
         try:
-            # 1. Estrai testo
-            with pdfplumber.open(filepath) as pdf:
-                text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+            # 1. Estrai testo se non fornito
+            if text is None:
+                with pdfplumber.open(filepath) as pdf:
+                    text = "\n".join(page.extract_text() or "" for page in pdf.pages)
 
             # 2. Prepara prompt
             prompt = self.prompt_manager.get_prompt_for(document_type)

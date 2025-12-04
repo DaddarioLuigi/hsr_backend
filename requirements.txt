@@ -37,7 +37,7 @@ pycparser==2.22
 pydantic==2.11.7
 pydantic_core==2.33.2
 Pygments==2.19.2
-pypdf==5.9.0
+pypdf==3.17.0
 pypdfium2==4.30.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
@@ -61,3 +61,5 @@ rapidfuzz==3.2.0
 flask-sqlalchemy==3.1.1
 SQLAlchemy==2.0.36
 psycopg2-binary==2.9.10
+ocrmypdf==15.4.0
+pikepdf == 8.5.3

@@ -7,9 +7,11 @@ import os
 import io
 import json
 import logging
+import tempfile
 import pdfplumber
 from typing import Optional, Dict, Any
 from werkzeug.datastructures import FileStorage
+import ocrmypdf
 
 from services.document_type_detector import DocumentTypeDetector
 from controller.controller import DocumentController
@@ -82,16 +84,78 @@ class DocumentUploadService:
         """
         filename = file.filename
         
-        # Determina il tipo di documento
-        document_type = self.type_detector.detect(filename)
-        logger.debug(f"Tipo documento rilevato: {document_type} per file {filename}")
-        
         # Leggi PDF in memoria
         file.stream.seek(0)
         file_bytes = file.read()
         file.stream.seek(0)
         
-        # Estrai testo per eventuale estrazione LLM
+        # Verifica se il PDF ha un layer di testo senza estrarre tutto il testo
+        has_text_layer = False
+        try:
+            with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+                # Controlla se almeno una pagina ha caratteri (chars) o oggetti di testo
+                for page in pdf.pages:
+                    if page.chars:  # Se ci sono caratteri, c'è un layer di testo
+                        has_text_layer = True
+                        break
+            logger.debug(f"Layer di testo presente: {has_text_layer} per file {filename}")
+        except Exception as e:
+            logger.error(f"Errore lettura PDF {filename}: {e}")
+            return DocumentUploadResult(
+                success=False,
+                filename=filename,
+                error=f"Errore lettura PDF: {str(e)}"
+            )
+        
+        # Se non c'è layer di testo, esegui OCR
+        if not has_text_layer:
+            logger.info(f"Nessun layer di testo rilevato per {filename}, avvio OCR...")
+            try:
+                # Crea file temporanei per input e output OCR
+                with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_input:
+                    temp_input.write(file_bytes)
+                    temp_input_path = temp_input.name
+                
+                with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_output:
+                    temp_output_path = temp_output.name
+                
+                try:
+                    # Esegui OCR con layer OCR
+                    ocrmypdf.ocr(
+                        temp_input_path,
+                        temp_output_path,
+                        language='ita+eng',  # Supporta italiano e inglese
+                        force_ocr=True  # Forza OCR per aggiungere il layer OCR
+                    )
+                    
+                    # Leggi il PDF con OCR
+                    with open(temp_output_path, 'rb') as f:
+                        file_bytes = f.read()
+                    
+                    # Crea un nuovo FileStorage con il contenuto OCRizzato
+                    file = FileStorage(
+                        stream=io.BytesIO(file_bytes),
+                        filename=filename,
+                        content_type=file.content_type
+                    )
+                    
+                finally:
+                    # Pulisci file temporanei
+                    try:
+                        os.unlink(temp_input_path)
+                    except:
+                        pass
+                    try:
+                        os.unlink(temp_output_path)
+                    except:
+                        pass
+                        
+            except Exception as e:
+                logger.error(f"Errore durante OCR per {filename}: {e}")
+                # Continua comunque con il file originale se OCR fallisce
+                logger.warning(f"Continuo con il file originale senza OCR")
+        
+        # Estrai testo (una sola volta, dopo eventuale OCR)
         try:
             with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
                 text = "\n".join(page.extract_text() or "" for page in pdf.pages)
@@ -101,8 +165,12 @@ class DocumentUploadService:
             return DocumentUploadResult(
                 success=False,
                 filename=filename,
-                error=f"Errore lettura PDF: {str(e)}"
+                error=f"Errore estrazione testo: {str(e)}"
             )
+        
+        # Determina il tipo di documento (dopo l'estrazione del testo)
+        document_type = self.type_detector.detect(filename, text)
+        logger.debug(f"Tipo documento rilevato: {document_type} per file {filename}")
         
         # Determina patient_id_final
         patient_id_final = self._determine_patient_id(
@@ -160,7 +228,7 @@ class DocumentUploadService:
         def process_with_error_logging():
             try:
                 self.controller.process_document_and_entities(
-                    filepath, patient_id_final, document_type, provided_anagraphic
+                    filepath, patient_id_final, document_type, provided_anagraphic, text
                 )
             except Exception as e:
                 logger.exception(f"Errore critico nel processing di {filename}: {e}")
