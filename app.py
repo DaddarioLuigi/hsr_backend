@@ -24,7 +24,13 @@ origins = [o.strip() for o in os.getenv("FRONTEND_ORIGINS", "http://localhost:30
 CORS(app, origins=origins, supports_credentials=True)
 
 # Configurazione database PostgreSQL
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Usa variabile d'ambiente o default per Docker Compose
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:postgres@postgres:5432/ALFIERI"
+)
+   
+
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
@@ -391,4 +397,4 @@ if __name__ == "__main__":
         db.create_all()
         logging.info("Tabelle database create/verificate")
     logging.info("Avvio app in locale su porta 5000")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=8080, debug=True)

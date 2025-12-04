@@ -1,0 +1,42 @@
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: hsr_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ALFIERI
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hsr_backend
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ALFIERI
+      - FRONTEND_ORIGINS=${FRONTEND_ORIGINS:-http://localhost:3000}
+      - TOGETHER_API_KEY=${TOGETHER_API_KEY:-}
+    volumes:
+      - ./uploads:/app/uploads
+      - ./export:/app/export
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
