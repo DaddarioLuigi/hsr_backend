@@ -14,6 +14,8 @@ from models.response import Response
 
 # Configura logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
+logging.getLogger("pdfminer").setLevel(logging.WARNING)
+logging.getLogger("pdfplumber").setLevel(logging.WARNING)
 
 
 app = Flask(__name__)
@@ -388,5 +390,5 @@ if __name__ == "__main__":
     with app.app_context():
         db.create_all()
         logging.info("Tabelle database create/verificate")
-    logging.info("Avvio app in locale su porta 8080")
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    logging.info("Avvio app in locale su porta 5000")
+    app.run(host='0.0.0.0', port=5000, debug=True)
