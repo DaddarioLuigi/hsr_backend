@@ -149,6 +149,7 @@ class DocumentController:
     ) -> dict:
         try:
             # 1. Estrai testo se non fornito
+            #TO DO non credo serva perchè se non lo ha estratto vuol dire che c'è stato un errore nel caricamento del documento
             if text is None:
                 with pdfplumber.open(filepath) as pdf:
                     text = "\n".join(page.extract_text() or "" for page in pdf.pages)
