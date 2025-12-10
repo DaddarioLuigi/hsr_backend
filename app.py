@@ -207,7 +207,8 @@ def update_document_entities_route(document_id):
         return jsonify({"success": False, "message": "Errore durante il salvataggio"}), 500
 
     try:
-        update_obj = Response.increment_correction(document_id)
+        entities_count = len(entities) if entities else 0
+        update_obj = Response.increment_correction(document_id, increment_by=entities_count)
         app.logger.debug(f"Risposta increment_correction: {update_obj}")
     except Exception as e:
         app.logger.exception(

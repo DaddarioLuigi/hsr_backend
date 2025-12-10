@@ -60,8 +60,8 @@ class Response(db.Model):
         return instance.to_dict()
 
     @classmethod
-    def increment_correction(cls, id_document: str) -> dict:
+    def increment_correction(cls, id_document: str, increment_by: int = 1) -> dict:
         instance = cls._get_or_create(id_document)
-        instance.corrections_count = (instance.corrections_count or 0) + 1
+        instance.corrections_count = (instance.corrections_count or 0) + increment_by
         db.session.commit()
         return instance.to_dict()
