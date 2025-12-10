@@ -200,6 +200,30 @@ def update_document_entities_route(document_id):
     if not isinstance(entities, list):
         app.logger.error("Formato entità non valido")
         return jsonify({"success": False, "message": "Formato entità non valido"}), 400
+    
+    # Recupera le entità esistenti per confronto
+    existing_detail = document_controller.get_document_detail(document_id)
+    existing_entities = existing_detail.get("entities", []) if existing_detail else []
+    
+    # Crea un dizionario delle entità esistenti per confronto rapido
+    # Usa id o type come chiave per identificare l'entità
+    existing_dict = {}
+    for entity in existing_entities:
+        key = entity.get("id") or entity.get("type")
+        if key:
+            existing_dict[key] = entity.get("value")
+    
+    # Conta le entità modificate confrontando i valori
+    modified_count = 0
+    for entity in entities:
+        key = entity.get("id") or entity.get("type")
+        new_value = entity.get("value")
+        if key:
+            old_value = existing_dict.get(key)
+            # Se il valore è cambiato o è una nuova entità (non esisteva prima)
+            if old_value != new_value:
+                modified_count += 1
+    
     ok = document_controller.update_document_entities(document_id, entities)
     
     if not ok:
@@ -207,9 +231,8 @@ def update_document_entities_route(document_id):
         return jsonify({"success": False, "message": "Errore durante il salvataggio"}), 500
 
     try:
-        entities_count = len(entities) if entities else 0
-        update_obj = Response.increment_correction(document_id, increment_by=entities_count)
-        app.logger.debug(f"Risposta increment_correction: {update_obj}")
+        update_obj = Response.increment_correction(document_id, increment_by=modified_count)
+        app.logger.debug(f"Risposta increment_correction: {update_obj}, entità modificate: {modified_count}")
     except Exception as e:
         app.logger.exception(
             f"Errore durante l'incremento delle correzioni per {document_id}: {e}"
