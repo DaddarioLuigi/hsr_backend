@@ -16,80 +16,161 @@ class PromptManager:
             "title": "Scheda Cardiochirurgia",
             "type": "object",
             "properties": {
+                "codice_fiscale": { "type": "string" },
                 "n_cartella": { "type": "number" },
-                "data_ingresso_cch": { "type": "string", "format": "date" },
-                "data_dimissione_cch": { "type": "string", "format": "date" },
                 "nome": { "type": "string" },
                 "cognome": { "type": "string" },
-                "sesso": { "type": "string", "enum": ["M", "F"] },
-                "numero_di_telefono": { "type": "string" },
-                "eta_al_momento_dell_intervento": { "type": "number" },
                 "data_di_nascita": { "type": "string", "format": "date" },
-                "Diagnosi": { "type": "string" },
+                "numero_di_telefono": { "type": "string" },
+                "data_dimissione_cch": { "type": "string", "format": "date" },
+                "data_intervento": { "type": "string", "format": "date" },
+                "data_ingresso_cch": { "type": "string", "format": "date" },
+                "Decorso_post_operatorio": { "type": "string" },
+                "II_Run_CEC": { "type": "boolean" },
+                "Causa_II_Run_CEC": { "type": "string" },
+                "Revisione_chirurgica": { "type": "boolean" },
+                "Conversione_a_chirurgia": { "type": "boolean" },
+                "Complicanze_accessi_vascolari": { "type": "boolean" },
+                "Drenaggio_versamento": { "type": "boolean" },
+                "Infarto": { "type": "boolean" },
+                "Occlusione_coronarica": { "type": "boolean" },
+                "FA_di_nuova_insorgenza": { "type": "boolean" },
+                "H_Stay_giorni_da_intervento_a_dimissione": { "type": "number" },
+                "IABP_ECMO_IMPELLA": { "type": "boolean" },
+                "IRA": { "type": "boolean" },
+                "Impianto_PM_post_intervento": { "type": "boolean" },
+                "Inotropi": { "type": "boolean" },
+                "NIMV": { "type": "boolean" },
+                "Insufficienza_respiratoria": { "type": "boolean" },
+                "LCOS": { "type": "boolean" },
+                "Morte": { "type": "boolean" },
+                "Causa_morte": { "type": "string" },
+                "Necessita_di_trasfusioni": { "type": "boolean" },
+                "Ritmo_alla_dimissione": { "type": "string", "enum": ["0","1","2"] },
+                "Stroke_TIA_post_op": { "type": "boolean" },
+                "Terapia": { "type": "string" },
+                "EMOCROMO_Globuli_rossi_pre": { "type": "number" },
+                "EMOCROMO_Globuli_bianchi_pre": { "type": "number" },
+                "EMOCROMO_Ematocrito_pre": { "type": "number" },
+                "EMOCROMO_Emoglobina_pre": { "type": "number" },
+                "S_GLUCOSIO_pre": { "type": "number" },
+                "S_UREA_pre": { "type": "number" },
+                "S_BILIRUBINA_TOTALE_pre": { "type": "number" },
+                "S_BILIRUBINA_DIRETTA_pre": { "type": "number" },
+                "S_FERRO_pre": { "type": "number" },
+                "S_TRANSFERRINA_pre": { "type": "number" },
+                "S_ASPARTATO_AMINOTRANSFERASI_pre": { "type": "number" },
+                "S_GAMMAGLUTAMILTRANSFERASI_pre": { "type": "number" },
+                "S_LATTICODEIDROGENASI_pre": { "type": "number" },
+                "S_PROTEINA_C_REATTIVA_pre": { "type": "number" },
+                "S_TRIGLICERIDI_pre": { "type": "number" },
+                "S_COLESTEROLO_pre": { "type": "number" },
+                "S_TROPONINA_T_pre": { "type": "number" },
+                "S_CREATININA_pre": { "type": "number" },
+                "PT_INR_International_Normalized_Ratio_pre": { "type": "number" },
+                "PT_Rapporto_pre": { "type": "number" },
+                "APTT_Secondi_pre": { "type": "number" },
+                "S_CREATINFOSFOCHINASI_pre": { "type": "number" },
+                "PIASTRINE_Piastrine_pre": { "type": "number" },
+                "S_BILIRUBINA_INDIRETTA_pre": { "type": "number" },
+                "S_SODIO_pre": { "type": "number" },
+                "S_POTASSIO_pre": { "type": "number" },
+                "S_CALCIO_pre": { "type": "number" },
+                "S_ALBUMINA_pre": { "type": "number" },
+                "S_PROPEPTIDE_NATRIURETICO_NT_proBNP_pre": { "type": "number" },
+                "S_FOSFATASI_ALCALINA_pre": { "type": "number" },
+                "eGFR_ml_min_pre": { "type": "number" },
+                "EMOCROMO_Globuli_rossi_post": { "type": "number" },
+                "EMOCROMO_Globuli_bianchi_post": { "type": "number" },
+                "EMOCROMO_Ematocrito_post": { "type": "number" },
+                "EMOCROMO_Emoglobina_post": { "type": "number" },
+                "S_GLUCOSIO_post": { "type": "number" },
+                "S_UREA_post": { "type": "number" },
+                "S_BILIRUBINA_TOTALE_post": { "type": "number" },
+                "S_BILIRUBINA_DIRETTA_post": { "type": "number" },
+                "S_FERRO_post": { "type": "number" },
+                "S_TRANSFERRINA_post": { "type": "number" },
+                "S_ASPARTATO_AMINOTRANSFERASI_post": { "type": "number" },
+                "S_GAMMAGLUTAMILTRANSFERASI_post": { "type": "number" },
+                "S_LATTICODEIDROGENASI_post": { "type": "number" },
+                "S_PROTEINA_C_REATTIVA_post": { "type": "number" },
+                "S_TRIGLICERIDI_post": { "type": "number" },
+                "S_COLESTEROLO_post": { "type": "number" },
+                "S_TROPONINA_T_post": { "type": "number" },
+                "S_CREATININA_post": { "type": "number" },
+                "PT_INR_International_Normalized_Ratio_post": { "type": "number" },
+                "PT_Rapporto_post": { "type": "number" },
+                "APTT_Secondi_post": { "type": "number" },
+                "S_CREATINFOSFOCHINASI_post": { "type": "number" },
+                "PIASTRINE_Piastrine_post": { "type": "number" },
+                "S_BILIRUBINA_INDIRETTA_post": { "type": "number" },
+                "S_SODIO_post": { "type": "number" },
+                "S_POTASSIO_post": { "type": "number" },
+                "S_CALCIO_post": { "type": "number" },
+                "S_ALBUMINA_post": { "type": "number" },
+                "S_PROPEPTIDE_NATRIURETICO_NT_proBNP_post": { "type": "number" },
+                "S_FOSFATASI_ALCALINA_post": { "type": "number" },
+                "eGFR_ml_min_post": { "type": "number" },
                 "Anamnesi": { "type": "string" },
                 "Motivo_ricovero": { "type": "string" },
-                "classe_nyha": { "type": "string", "enum": ["I", "II", "III", "IV"] },
-                "angor": { "type": "boolean" },
-                "STEMI_NSTEMI": { "type": "boolean" },
-                "scompenso_cardiaco_nei_3_mesi_precedenti": { "type": "boolean" },
-                "fumo": { "type": "number", "enum": [0, 1, 2] },
-                "diabete": { "type": "boolean" },
-                "ipertensione": { "type": "boolean" },
-                "dislipidemia": { "type": "boolean" },
-                "BPCO": { "type": "boolean" },
-                "stroke_pregresso": { "type": "boolean" },
-                "TIA_pregresso": { "type": "boolean" },
-                "vasculopatiaperif": { "type": "boolean" },
-                "neoplasia_pregressa": { "type": "boolean" },
-                "irradiazionetoracica": { "type": "boolean" },
-                "insufficienza_renale_cronica": { "type": "boolean" },
+                "Diagnosi": { "type": "string" },
+                "eta_al_momento_dell_intervento": { "type": "number" },
+                "sesso": { "type": "string", "enum": ["M", "F"] },
                 "familiarita_cardiovascolare": { "type": "boolean" },
-                "limitazione_mobilita": { "type": "boolean" },
-                "endocardite": { "type": "boolean" },
+                "altezza": { "type": "number" },
+                "peso": { "type": "number" },
+                "bmi": { "type": "number" },
+                "bsa": { "type": "number" },
+                "fumo": { "type": "number", "enum": [0, 1, 2] },
+                "BPCO": { "type": "boolean" },
+                "diabete": { "type": "boolean" },
+                "dialisi": { "type": "boolean" },
+                "dislipidemia": { "type": "boolean" },
                 "ritmo_all_ingresso": { "type": "number", "enum": [0, 1, 2] },
                 "fibrillazione_atriale": { "type": "number", "enum": [0, 1, 2] },
-                "dialisi": { "type": "boolean" },
-                "elettivo_urgenza_emergenza": { "type": "number", "enum": [0, 1, 2] },
                 "pm": { "type": "boolean" },
                 "crt": { "type": "boolean" },
                 "icd": { "type": "boolean" },
+                "classe_nyha": { "type": "string", "enum": ["I", "II", "III", "IV"] },
+                "angor": { "type": "boolean" },
+                "edemi_declivi": { "type": "boolean" },
+                "ascite": { "type": "boolean" },
+                "elettivo_urgenza_emergenza": { "type": "number", "enum": [0, 1, 2] },
+                "endocardite": { "type": "boolean" },
+                "insufficienza_renale_cronica": { "type": "boolean" },
+                "ipertensione": { "type": "boolean" },
+                "irradiazionetoracica": { "type": "boolean" },
+                "STEMI_NSTEMI": { "type": "boolean" },
+                "TIA_pregresso": { "type": "boolean" },
+                "limitazione_mobilita": { "type": "boolean" },
+                "neoplasia_pregressa": { "type": "boolean" },
                 "pci_pregressa": { "type": "boolean" },
-                "REDO": { "type": "boolean" },
+                "scompenso_cardiaco_nei_3_mesi_precedenti": { "type": "boolean" },
+                "secondo_intervento": { "type": "boolean" },
+                "stroke_pregresso": { "type": "boolean" },
+                "vasculopatiaperif": { "type": "boolean" },
                 "Anno_REDO": { "type": "string", "format": "date" },
-                "Tipo_di_REDO": { "type": "string" },
-                "Terapia": { "type": "string" },
+                "Intervento_cardiochirurgico_pregresso": { "type": "boolean" },
+                "Intervento_transcatetere_pregresso": { "type": "boolean" },
+                "Intervento_pregresso_descrizione": { "type": "string" },
+                "aceinib": { "type": "boolean" },
+                "antiaggregante": { "type": "boolean" },
+                "anticoagorali": { "type": "boolean" },
+                "betabloc": { "type": "boolean" },
+                "caantag": { "type": "boolean" },
+                "dapt": { "type": "boolean" },
                 "lasix": { "type": "boolean" },
                 "lasix_dosaggio": { "type": "number" },
-                "nitrati": { "type": "boolean" },
-                "antiaggregante": { "type": "boolean" },
-                "dapt": { "type": "boolean" },
-                "anticoagorali": { "type": "boolean" },
-                "aceinib": { "type": "boolean" },
-                "betabloc": { "type": "boolean" },
+                "altri_diuretici": { "type": "boolean" },
                 "sartanici": { "type": "boolean" },
-                "caantag": { "type": "boolean" },
-                "esami_all_ingresso": { "type": "string" },
-                "Decorso_post_operatorio": { "type": "string" },
-                "IABP_ECMO_IMPELLA": { "type": "boolean" },
-                "Inotropi": { "type": "boolean" },
-                "secondo_intervento": { "type": "boolean" },
-                "Tipo_secondo_intervento": { "type": "string" },
-                "II_Run": { "type": "boolean" },
-                "Causa_II_Run_CEC": { "type": "string" },
-                "LCOS": { "type": "boolean" },
-                "Impianto_PM_post_intervento": { "type": "boolean" },
-                "Stroke_TIA_post_op": { "type": "boolean" },
-                "Necessita_di_trasfusioni": { "type": "boolean" },
-                "IRA": { "type": "boolean" },
-                "Insufficienza_respiratoria": { "type": "boolean" },
-                "FA_di_nuova_insorgenza": { "type": "boolean" },
-                "Ritmo_alla_dimissione": { "type": "string", "enum": ["0","1","2"] },
-                "H_Stay_giorni_da_intervento_a_dimissione": { "type": "number" },
-                "Morte": { "type": "boolean" },
-                "Causa_morte": { "type": "string" },
-                "data_morte": { "type": "string", "format": "date" },
-                "esami_alla_dimissione": { "type": "string" },
-                "terapia_alla_dimissione": { "type": "string" }
+                "nitrati": { "type": "boolean" },
+                "statine": { "type": "boolean" },
+                "Insulina": { "type": "boolean" },
+                "Metformina": { "type": "boolean" },
+                "anti_SGLT2": { "type": "boolean" },
+                "ARNI": { "type": "boolean" },
+                "Gliflozine": { "type": "boolean" },
+                "Entresto": { "type": "boolean" }
             },
             "required": ["n_cartella", "nome", "cognome"],
             "additionalProperties": True
@@ -342,41 +423,85 @@ class PromptManager:
                 "n_cartella": { "type": "number" },
                 "nome": { "type": "string" },
                 "cognome": { "type": "string" },
-                "data_di_nascita": { "type": "string", "format": "date" },  # (CSV: 'dob')
+                "data_di_nascita": { "type": "string", "format": "date" },
                 "data_intervento": { "type": "string", "format": "date" },
-                "Percorso": { "type": "string" },                           # Chirurgico / Transcatetere
-                "redo": { "type": "boolean" },
-                "cec": { "type": "boolean" },
-                "cannulazionearteriosa": { "type": "string" },
-                "statopaz": { "type": "string" },
-                "cardioplegia": { "type": "string" },
-                "approcciochirurgico": { "type": "string" },
-
-                "entratainsala": { "type": "string", "format": "time" },
-                "iniziointervento": { "type": "string", "format": "time" },
-                "iniziocec": { "type": "string", "format": "time" },
-                "inizioclamp": { "type": "string", "format": "time" },
-                "inizioacc": { "type": "string", "format": "time" },
-                "fineacc": { "type": "string", "format": "time" },
-                "fineclamp": { "type": "string", "format": "time" },
-                "finecec": { "type": "string", "format": "time" },
-                "fineintervento": { "type": "string", "format": "time" },
-                "uscitasala": { "type": "string", "format": "time" },
-
-                "primo operatore cognome": { "type": "string" },
-                "primo operatore nome": { "type": "string" },
-
-                "num_interventi": { "type": "number" },
-
-                # Primo intervento dettagliato (aderente al CSV di esempio)
-                "intervento 1": { "type": "string" },
-                "protesi 1": { "type": "string" },          # Biologica/Meccanica/Anello
-                "modello 1": { "type": "string" },
-                "numero 1": { "type": "number" },
-                "eziologia_valvolare 1": { "type": "string" },
-
-                # Testo libero (riassunto verbale operatorio)
-                "intervento text": { "type": "string" }
+                "nome_intervento": { "type": "string" },
+                "intervento_text": { "type": "string" },
+                "percorso": { "type": "string" },
+                "Accesso": { "type": "string", "enum": ["transfemorale", "minitoracotomia", "ministernotomia"] },
+                "Reintervento": { "type": "boolean" },
+                "Sostituzione_valvolare_aortica_biologica": { "type": "boolean" },
+                "Sostituzione_valvolare_aortica_biologica_Nome_protesi": { "type": "string" },
+                "Sostituzione_valvolare_aortica_biologica_Size_Protesi": { "type": "string" },
+                "Sostituzione_valvolare_aortica_meccanica": { "type": "boolean" },
+                "Sostituzione_valvolare_aortica_meccanica_Nome_protesi": { "type": "string" },
+                "Sostituzione_valvolare_aortica_meccanica_Size_Protesi": { "type": "string" },
+                "Sostituzione_Aorta_Ascendente": { "type": "boolean" },
+                "Sostituzione_Aorta_Ascendente_Nome_protesi": { "type": "string" },
+                "Sostituzione_Aorta_Ascendente_Size_Protesi": { "type": "string" },
+                "Sostituzione_Arco_Aortico": { "type": "boolean" },
+                "Sostituzione_Arco_Aortico_Nome_protesi": { "type": "string" },
+                "Sostituzione_Arco_Aortico_Size_Protesi": { "type": "string" },
+                "Bentall_bio": { "type": "boolean" },
+                "Bentall_bio_Nome_protesi": { "type": "string" },
+                "Bentall_bio_Size_Protesi": { "type": "string" },
+                "Bentall_mecc": { "type": "boolean" },
+                "Bentall_mecc_Nome_protesi": { "type": "string" },
+                "Bentall_mecc_Size_Protesi": { "type": "string" },
+                "David_I": { "type": "boolean" },
+                "Plastica_valvolare_aortica": { "type": "boolean" },
+                "TAVI": { "type": "boolean" },
+                "TAVI_Nome_protesi": { "type": "string" },
+                "TAVI_Size_Protesi": { "type": "string" },
+                "Valve_in_valve_aortica_con_prima_protesi_chirurgica": { "type": "boolean" },
+                "Valve_in_valve_aortica_con_prima_protesi_chirurgica_Nome_protesi": { "type": "string" },
+                "Valve_in_valve_aortica_con_prima_protesi_chirurgica_Size_Protesi": { "type": "string" },
+                "Valve_in_valve_aortica_con_prima_protesi_TAVI": { "type": "boolean" },
+                "Valve_in_valve_aortica_con_prima_protesi_TAVI_Nome_protesi": { "type": "string" },
+                "Valve_in_valve_aortica_con_prima_protesi_TAVI_Size_Protesi": { "type": "string" },
+                "Plastica_mitralica": { "type": "boolean" },
+                "Plastica_mitralica_Marca_Anello": { "type": "string" },
+                "Plastica_mitralica_Size_anello": { "type": "string" },
+                "Plastica_mitralica_Tecnica_usata": { "type": "string", "enum": ["edge-to-edge centrale", "edge-to-edge paracommissurale mediale", "edge-to-edge paracommissurale laterale", "resezione lembo posteriore", "chiusura cleft", "corde su lembo anteriore", "corde su lembo posteriore"] },
+                "Sostituzione_valvolare_mitralica_biologica": { "type": "boolean" },
+                "Sostituzione_valvolare_mitralica_biologica_Nome_protesi": { "type": "string" },
+                "Sostituzione_valvolare_mitralica_biologica_Size_Protesi": { "type": "string" },
+                "Sostituzione_valvolare_mitralica_meccanica": { "type": "boolean" },
+                "Sostituzione_valvolare_mitralica_meccanica_Nome_protesi": { "type": "string" },
+                "Sostituzione_valvolare_mitralica_meccanica_Size_Protesi": { "type": "string" },
+                "Transcatheter_Mitral_Valve_Implantation": { "type": "boolean" },
+                "Transcatheter_Mitral_Valve_Implantation_Nome_protesi": { "type": "string" },
+                "Transcatheter_Mitral_Valve_Implantation_Size_Protesi": { "type": "string" },
+                "MitralClip": { "type": "boolean" },
+                "MitralClip_Numero_di_clip": { "type": "number" },
+                "MitralClip_tipologia_di_clip": { "type": "string", "enum": ["XTW", "XT", "NT", "NTW"] },
+                "Valve_in_valve_in_protesi_mitralica_chirurgica": { "type": "boolean" },
+                "Valve_in_valve_in_protesi_mitralica_chirurgica_Nome_protesi": { "type": "string" },
+                "Valve_in_valve_in_protesi_mitralica_chirurgica_Size_Protesi": { "type": "string" },
+                "Valve_in_Valve_in_paziente_con_pregressa_PLM_con_un_anello_chirurgico": { "type": "boolean" },
+                "Valve_in_Valve_in_paziente_con_pregressa_PLM_con_un_anello_chirurgico_Nome_protesi": { "type": "string" },
+                "Valve_in_Valve_in_paziente_con_pregressa_PLM_con_un_anello_chirurgico_Size_Protesi": { "type": "string" },
+                "Valvuloplastica_transcatetere_mitrale_commissurotomia": { "type": "boolean" },
+                "Commissurotomia_mitralica_chirurgica": { "type": "boolean" },
+                "Plastica_tricuspidalica": { "type": "boolean" },
+                "Plastica_tricuspidalica_Anello": { "type": "string" },
+                "Plastica_tricuspidalica_Size_anello": { "type": "string" },
+                "Plastica_tricuspidalica_Tecnica": { "type": "string", "enum": ["DEVEGA", "KAY"] },
+                "Triclip": { "type": "boolean" },
+                "Triclip_Numero_di_clip": { "type": "number" },
+                "Triclip_tipologia_di_clip": { "type": "string" },
+                "Transcatheter_Tricuspid_Valve_Implantation_valvola_tricuspide_nativa": { "type": "boolean" },
+                "Transcatheter_Tricuspid_Valve_Implantation_valvola_tricuspide_nativa_Nome_protesi": { "type": "string" },
+                "Transcatheter_Tricuspid_Valve_Implantation_valvola_tricuspide_nativa_Size_Protesi": { "type": "string" },
+                "Valve_in_valve_tricuspidalica": { "type": "boolean" },
+                "Valve_in_valve_tricuspidalica_Nome_protesi": { "type": "string" },
+                "Valve_in_valve_tricuspidalica_Size_Protesi": { "type": "string" },
+                "Ablazione_FA": { "type": "boolean" },
+                "Chiusura_auricola": { "type": "boolean" },
+                "Chiusura_PFO_o_DIA": { "type": "boolean" },
+                "Bypass": { "type": "boolean" },
+                "Bypass_Numero_di_bypass": { "type": "number" },
+                "Chiusura_leak": { "type": "boolean" }
             },
             "required": ["n_cartella", "nome", "cognome", "data_intervento"]
         },
@@ -389,13 +514,72 @@ class PromptManager:
             "nome": { "type": "string" },
             "cognome": { "type": "string" },
             "data_di_nascita": { "type": "string", "format": "date" },
-
-            "Terapia": { "type": "string" },            # terapia in atto all'ingresso
-            "Allergie": { "type": "string" },           # farmacoallergie/intolleranze
-            "Abitudini": { "type": "string" },          # fumo/alcol/altro se riportati
-            "Comorbidita": { "type": "string" },        # elenco/riassunto comorbidità
-            "esami_all_ingresso": { "type": "string" }, # labs/strumentali all'ingresso
-            "parametri": { "type": "string" }           # key:value; key:value; da tabelle/elenco
+            "Anamnesi": { "type": "string" },
+            "Motivo_ricovero": { "type": "string" },
+            "Diagnosi": { "type": "string" },
+            "eta_al_momento_dell_intervento": { "type": "number" },
+            "sesso": { "type": "string", "enum": ["M", "F"] },
+            "familiarita_cardiovascolare": { "type": "boolean" },
+            "altezza": { "type": "number" },
+            "peso": { "type": "number" },
+            "bmi": { "type": "number" },
+            "bsa": { "type": "number" },
+            "fumo": { "type": "number", "enum": [0, 1, 2] },
+            "BPCO": { "type": "boolean" },
+            "diabete": { "type": "boolean" },
+            "dialisi": { "type": "boolean" },
+            "dislipidemia": { "type": "boolean" },
+            "ritmo_all_ingresso": { "type": "number", "enum": [0, 1, 2] },
+            "fibrillazione_atriale": { "type": "number", "enum": [0, 1, 2] },
+            "pm": { "type": "boolean" },
+            "crt": { "type": "boolean" },
+            "icd": { "type": "boolean" },
+            "classe_nyha": { "type": "string", "enum": ["I", "II", "III", "IV"] },
+            "angor": { "type": "boolean" },
+            "edemi_declivi": { "type": "boolean" },
+            "ascite": { "type": "boolean" },
+            "elettivo_urgenza_emergenza": { "type": "number", "enum": [0, 1, 2] },
+            "endocardite": { "type": "boolean" },
+            "insufficienza_renale_cronica": { "type": "boolean" },
+            "ipertensione": { "type": "boolean" },
+            "irradiazionetoracica": { "type": "boolean" },
+            "STEMI_NSTEMI": { "type": "boolean" },
+            "TIA_pregresso": { "type": "boolean" },
+            "limitazione_mobilita": { "type": "boolean" },
+            "neoplasia_pregressa": { "type": "boolean" },
+            "pci_pregressa": { "type": "boolean" },
+            "scompenso_cardiaco_nei_3_mesi_precedenti": { "type": "boolean" },
+            "secondo_intervento": { "type": "boolean" },
+            "stroke_pregresso": { "type": "boolean" },
+            "vasculopatiaperif": { "type": "boolean" },
+            "Anno_REDO": { "type": "string", "format": "date" },
+            "Intervento_cardiochirurgico_pregresso": { "type": "boolean" },
+            "Intervento_transcatetere_pregresso": { "type": "boolean" },
+            "Intervento_pregresso_descrizione": { "type": "string" },
+            "Terapia": { "type": "string" },
+            "aceinib": { "type": "boolean" },
+            "antiaggregante": { "type": "boolean" },
+            "anticoagorali": { "type": "boolean" },
+            "betabloc": { "type": "boolean" },
+            "caantag": { "type": "boolean" },
+            "dapt": { "type": "boolean" },
+            "lasix": { "type": "boolean" },
+            "lasix_dosaggio": { "type": "number" },
+            "altri_diuretici": { "type": "boolean" },
+            "sartanici": { "type": "boolean" },
+            "nitrati": { "type": "boolean" },
+            "statine": { "type": "boolean" },
+            "Insulina": { "type": "boolean" },
+            "Metformina": { "type": "boolean" },
+            "anti_SGLT2": { "type": "boolean" },
+            "ARNI": { "type": "boolean" },
+            "Gliflozine": { "type": "boolean" },
+            "Entresto": { "type": "boolean" },
+            "Allergie": { "type": "string" },
+            "Abitudini": { "type": "string" },
+            "Comorbidita": { "type": "string" },
+            "esami_all_ingresso": { "type": "string" },
+            "parametri": { "type": "string" }
         },
         "required": ["n_cartella", "nome", "cognome"],
         "additionalProperties": True
@@ -429,26 +613,16 @@ class PromptManager:
             "cognome": { "type": "string" },
             "data_di_nascita": { "type": "string", "format": "date" },
             "data_intervento": { "type": "string", "format": "date" },
-
-            "entratainsala": { "type": "string", "format": "time" },
-            "iniziointervento": { "type": "string", "format": "time" },
-            "iniziocec": { "type": "string", "format": "time" },
-            "inizioclamp": { "type": "string", "format": "time" },
-            "inizioacc": { "type": "string", "format": "time" },
-            "fineacc": { "type": "string", "format": "time" },
-            "fineclamp": { "type": "string", "format": "time" },
-            "finecec": { "type": "string", "format": "time" },
-            "fineintervento": { "type": "string", "format": "time" },
-            "uscitasala": { "type": "string", "format": "time" },
-
-            "cec": { "type": "boolean" },
-            "cardioplegia": { "type": "string" },
-            "approcciochirurgico": { "type": "string" },
-
-            "anestesia": { "type": "string" },            # es. generale, locoregionale (se riportato)
-            "farmaci_intraop": { "type": "string" },      # elenco/riassunto farmaci
-            "eventi_intraop": { "type": "string" },       # eventi/complicanze intraoperatorie
-            "parametri": { "type": "string" }             # tabellari: "chiave: valore; ..."
+            "INGRESSO_IN_SALA": { "type": "string", "format": "time" },
+            "INIZIO_TEMPO_CHIRURGICO": { "type": "string", "format": "time" },
+            "TEMPI_CCH_Inizio_CEC": { "type": "string", "format": "time" },
+            "TEMPI_CCH_Clamp_Ao": { "type": "string", "format": "time" },
+            "TEMPI_CCH_Declamp_Ao": { "type": "string", "format": "time" },
+            "TEMPI_CCH_fine_CEC": { "type": "string", "format": "time" },
+            "FINE_TEMPO_CHIRURGICO": { "type": "string", "format": "time" },
+            "USCITA_DI_SALA": { "type": "string", "format": "time" },
+            "Cardioplegia": { "type": "string" },
+            "Tipo_plegia": { "type": "string" }
         },
         "required": ["n_cartella", "nome", "cognome", "data_intervento"],
         "additionalProperties": True
@@ -508,8 +682,18 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre le se
 | Anno_REDO                                  | Date              | Anno in cui è stato eseguito l'intervento REDO precedente.                                                                                      |
 | Tipo_di_REDO                               | Text              | Descrizione del tipo di intervento REDO eseguito.                                                                                               |
 | Terapia                                    | Text              | Terapia farmacologica in atto al momento del ricovero. Deve riferirsi alla situazione **pre-operatoria**, quindi utilizza le date per escludere terapia chiaramente introdotta solo alla dimissione. |
+| altezza                                    | Number            | Altezza del paziente in centimetri.                                                                                                             |
+| peso                                       | Number            | Peso del paziente in chilogrammi.                                                                                                               |
+| bmi                                        | Number            | Body Mass Index.                                                                                                                                |
+| bsa                                        | Number            | Body Surface Area.                                                                                                                              |
+| edemi_declivi                              | Boolean           | Presenza di edemi declivi.                                                                                                                      |
+| ascite                                     | Boolean           | Presenza di ascite.                                                                                                                             |
+| Intervento_cardiochirurgico_pregresso      | Boolean           | Presenza di intervento cardiochirurgico pregresso (0/1).                                                                                      |
+| Intervento_transcatetere_pregresso         | Boolean           | Presenza di intervento transcatetere pregresso (0/1).                                                                                          |
+| Intervento_pregresso_descrizione           | Text              | Descrizione dell'intervento pregresso (può essere cardiochirurgico o transcatetere).                                                           |
 | lasix                                      | Boolean           | Uso documentato di furosemide (Lasix).                                                                                                          |
 | lasix_dosaggio                             | Number            | Dosaggio giornaliero di furosemide in mg.                                                                                                       |
+| altri_diuretici                             | Boolean           | Uso di altri diuretici oltre al Lasix.                                                                                                         |
 | nitrati                                    | Boolean           | Assunzione di nitrati (vasodilatatori usati per l'angina).                                                                                      |
 | antiaggregante                             | Boolean           | Presenza di terapia antiaggregante (es. ASA, clopidogrel).                                                                                      |
 | dapt                                       | Boolean           | Doppia antiaggregazione piastrinica (es. ASA + clopidogrel/prasugrel).                                                                          |
@@ -518,6 +702,13 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre le se
 | betabloc                                   | Boolean           | Uso di beta-bloccanti.                                                                                                                          |
 | sartanici                                  | Boolean           | Uso di sartani (ARBs).                                                                                                                          |
 | caantag                                    | Boolean           | Uso di calcio-antagonisti.                                                                                                                      |
+| statine                                    | Boolean           | Uso di statine.                                                                                                                                 |
+| Insulina                                   | Boolean           | Uso di insulina.                                                                                                                                 |
+| Metformina                                 | Boolean           | Uso di metformina.                                                                                                                              |
+| anti_SGLT2                                 | Boolean           | Uso di anti-SGLT2 (inibitori del cotrasportatore sodio-glucosio di tipo 2).                                                                    |
+| ARNI                                       | Boolean           | Uso di ARNI (Angiotensin Receptor Neprilysin Inhibitor, es. Entresto).                                                                        |
+| Gliflozine                                 | Boolean           | Uso di gliflozine (classe di farmaci anti-SGLT2).                                                                                                |
+| Entresto                                   | Boolean           | Uso di Entresto (sacubitril/valsartan, ARNI).                                                                                                   |
 | esami_laboratorio                         | Text              | Risultati di laboratorio e strumentali. Quando possibile, indica se si riferiscono al periodo **pre-operatorio** o **alla dimissione**, sfruttando la data degli esami rispetto a `data_intervento` e `data_dimissione_cch`. |
 | Decorso_post_operatorio                    | Text              | Descrizione del decorso clinico successivo all’intervento chirurgico.                                                                          |
 | IABP_ECMO_IMPELLA                          | Boolean           | Necessità di supporto meccanico circolatorio (IABP, ECMO o Impella).                                                                           |
@@ -541,10 +732,28 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre le se
 | esami_laboratorio_dimissione              | Text              | Risultati di laboratorio e strumentali prima della dimissione (usa solo esami con data successiva all’intervento e prossima alla dimissione).  |
 | Terapia_dimissione                        | Text              | Terapia farmacologica prescritta alla dimissione (usa solo la terapia associata temporalmente alla dimissione, non quella pre-operatoria).     |
 
+### ESAMI DI LABORATORIO - IMPORTANTE: DISTINGUERE PRIMA O DOPO INTERVENTO IN BASE ALLA DATA
+
+**REGOLA CRITICA**: Per tutti gli esami di laboratorio, devi confrontare la **data dell'esame** con la **data_intervento**. 
+- Se la data dell'esame è **PRIMA** di `data_intervento`, usa il suffisso **_pre**
+- Se la data dell'esame è **DOPO** di `data_intervento`, usa il suffisso **_post**
+
+Se la data dell'esame non è specificata, usa il contesto del documento (es. "esami all'ingresso" = pre, "esami alla dimissione" = post).
+
+Gli esami di laboratorio da estrarre sono (usa sempre il suffisso _pre o _post in base alla data):
+- EMOCROMO_Globuli_rossi, EMOCROMO_Globuli_bianchi, EMOCROMO_Ematocrito, EMOCROMO_Emoglobina
+- S_GLUCOSIO, S_UREA, S_BILIRUBINA_TOTALE, S_BILIRUBINA_DIRETTA, S_FERRO, S_TRANSFERRINA
+- S_ASPARTATO_AMINOTRANSFERASI, S_GAMMAGLUTAMILTRANSFERASI, S_LATTICODEIDROGENASI, S_PROTEINA_C_REATTIVA
+- S_TRIGLICERIDI, S_COLESTEROLO, S_TROPONINA_T, S_CREATININA
+- PT_INR_International_Normalized_Ratio, PT_Rapporto, APTT_Secondi, S_CREATINFOSFOCHINASI
+- PIASTRINE_Piastrine, S_BILIRUBINA_INDIRETTA, S_SODIO, S_POTASSIO, S_CALCIO, S_ALBUMINA
+- S_PROPEPTIDE_NATRIURETICO_NT_proBNP, S_FOSFATASI_ALCALINA, eGFR_ml_min
+
 ---
 
 ### **Istruzioni IMPORTANTI:**
 
+- **CRITICO**: Per gli esami di laboratorio, confronta SEMPRE la **data dell'esame** con `data_intervento`. Se la data dell'esame è **prima** dell'intervento, usa il suffisso **_pre**. Se è **dopo**, usa **_post**. Se la data non è specificata, usa il contesto (es. "all'ingresso" = pre, "alla dimissione" = post).
 - Ragiona considerando **frase per frase** e sfrutta sempre le **date** (ingresso, intervento, dimissione, date degli esami) per distinguere ciò che è **pre-operatorio** da ciò che è **post-operatorio/dimissione**.
 - Non estrarre **nessuna entità** diversa da quelle elencate.
 - Se un'entità non è presente nella lettera, **non inventarla** e **non includerla** nel risultato.
@@ -1044,21 +1253,106 @@ REGOLE:
   - Accesso: es. "transfemorale", "minitoracotomia", "ministernotomia".
 ''',
     "anamnesi": '''
-    Sei un medico. Estrai ESCLUSIVAMENTE le seguenti entità dall'ANAMNESI (periodo **preoperatorio**):
+    Sei un medico specializzato in cardiochirurgia. Estrai ESCLUSIVAMENTE le seguenti entità dall'ANAMNESI (periodo **preoperatorio**):
     
-    - n_cartella (Number), nome (Text), cognome (Text), data_di_nascita (Date)
-    - Terapia (Text)                 # terapia in atto all'ingresso, prima dell'intervento
-    - Allergie (Text)                # farmacoallergie/intolleranze
-    - Abitudini (Text)               # fumo/alcol/altro, se presenti
-    - Comorbidita (Text)             # elenco o riassunto
-    - esami_laboratorio (Text)      # labs/strumentali al ricovero preoperatorio
-    - parametri (Text)               # se presenti tabelle/elenco parametri: riportali come "chiave: valore" separati da "; "
+    ### Entità da estrarre:
     
-    REGOLE:
+    ### Mappa delle entità e tipi
+    
+    | Entità                                      | Tipo              | Descrizione                                                                                                                                     |
+    |--------------------------------------------|-------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+    | n_cartella                                 | Number            | Numero identificativo univoco assegnato alla cartella clinica del paziente.                                                                    |
+    | nome                                       | Text              | Nome proprio del paziente.                                                                                                                      |
+    | cognome                                    | Text              | Cognome del paziente.                                                                                                                           |
+    | data_di_nascita                            | Date              | Data di nascita del paziente.                                                                                                                   |
+    | Anamnesi                                    | Text              | Anamnesi patologica remota e prossima, utile per la valutazione del rischio operatorio.                                                        |
+    | Motivo_ricovero                            | Text              | Indicazione clinica per il ricovero in Cardiochirurgia.                                                                                         |
+    | Diagnosi                                   | Text              | Diagnosi principale alla base dell'indicazione chirurgica.                                                                                      |
+    | eta_al_momento_dell_intervento            | Number            | Età del paziente calcolata alla data dell'intervento chirurgico.                                                                               |
+    | sesso                                      | Categorical_MF    | Sesso biologico del paziente (M = Maschio, F = Femmina).                                                                                        |
+    | familiarita_cardiovascolare                | Boolean           | Familiarità per malattie cardiovascolari premature (prima dei 55 anni per uomini, 65 per donne).                                                |
+    | altezza                                    | Number            | Altezza del paziente in centimetri.                                                                                                             |
+    | peso                                       | Number            | Peso del paziente in chilogrammi.                                                                                                               |
+    | bmi                                        | Number            | Body Mass Index.                                                                                                                                |
+    | bsa                                        | Number            | Body Surface Area.                                                                                                                              |
+    | fumo                                       | Categorical_012   | Abitudine al fumo (0 = mai fumato, 1 = ex-fumatore, 2 = fumatore attivo).                                                                      |
+    | BPCO                                       | Boolean           | Presenza di broncopneumopatia cronica ostruttiva.                                                                                               |
+    | diabete                                    | Boolean           | Presenza di diabete mellito noto. **REGOLA SPECIALE**: Oltre al testo esplicito, imposta `diabete = true` se la terapia comprende **Insulina** o **Metformina**, anche in assenza di una frase che menzioni esplicitamente "diabete". |
+    | dialisi                                    | Boolean           | Paziente in trattamento emodialitico o peritoneale.                                                                                             |
+    | dislipidemia                               | Boolean           | Presenza di dislipidemia (colesterolo e/o trigliceridi elevati). **REGOLA SPECIALE**: Oltre al testo, se i valori di colesterolo o trigliceridi negli esami di laboratorio risultano alterati (colesterolo > 200 mg/dL o trigliceridi > 150 mg/dL), oppure se è presente una terapia con **statine**, imposta `dislipidemia = true`. |
+    | ritmo_all_ingresso                         | Categorical_012   | Ritmo cardiaco al momento del ricovero (0 = ritmo sinusale, 1 = FA, 2 = altro).                                                                 |
+    | fibrillazione_atriale                      | Categorical_012   | Presenza di fibrillazione atriale (0 = mai, 1 = parossistica, 2 = permanente/persistente).                                                     |
+    | pm                                         | Boolean           | Presenza di pacemaker.                                                                                                                          |
+    | crt                                        | Boolean           | Presenza di terapia di resincronizzazione cardiaca (CRT).                                                                                       |
+    | icd                                        | Boolean           | Presenza di defibrillatore impiantabile (ICD).                                                                                                  |
+    | classe_nyha                                | Categorical_1234  | Classe funzionale NYHA per scompenso cardiaco (I-IV), definisce la gravità dei sintomi.                                                        |
+    | angor                                      | Boolean           | Presenza di angina pectoris (dolore toracico di origine ischemica).                                                                            |
+    | edemi_declivi                              | Boolean           | Presenza di edemi declivi.                                                                                                                      |
+    | ascite                                     | Boolean           | Presenza di ascite.                                                                                                                             |
+    | elettivo_urgenza_emergenza                 | Categorical_012   | Tipo di intervento (0 = elettivo, 1 = urgente, 2 = emergenza).                                                                                  |
+    | endocardite                                | Boolean           | Pregressa o attiva endocardite infettiva, rilevante per indicazione chirurgica.                                                                |
+    | insufficienza_renale_cronica               | Boolean           | Presenza di insufficienza renale cronica diagnosticata. **REGOLA SPECIALE**: Se è riportato un valore di **eGFR ml/min** < 60, imposta `insufficienza_renale_cronica = true` anche senza frase esplicita. |
+    | ipertensione                               | Boolean           | Presenza di ipertensione arteriosa. **REGOLA SPECIALE**: Oltre al testo, se la terapia comprende ACE-inibitori (`aceinib`), sartani (`sartanici`) o calcio-antagonisti (`caantag`), imposta `ipertensione = true` anche in assenza di una dicitura esplicita. |
+    | irradiazionetoracica                       | Boolean           | Pregressa radioterapia al torace, rilevante per effetti tardivi su cuore e vasi.                                                               |
+    | STEMI_NSTEMI                               | Boolean           | Presenza di infarto miocardico acuto con/senza sopraslivellamento del tratto ST.                                                               |
+    | TIA_pregresso                              | Boolean           | Episodio pregresso di attacco ischemico transitorio (TIA).                                                                                      |
+    | limitazione_mobilita                       | Boolean           | Presenza di limitazioni significative alla mobilità (es. pazienti allettati).                                                                  |
+    | neoplasia_pregressa                        | Boolean           | Presenza di neoplasie trattate in passato.                                                                                                      |
+    | pci_pregressa                              | Boolean           | Precedente angioplastica coronarica percutanea (PCI).                                                                                           |
+    | scompenso_cardiaco_nei_3_mesi_precedenti   | Boolean           | Episodi di scompenso cardiaco documentati nei 3 mesi precedenti l'intervento.                                                                  |
+    | secondo_intervento                         | Boolean           | Esecuzione di un secondo intervento durante la degenza attuale.                                                                                |
+    | stroke_pregresso                           | Boolean           | Precedente episodio di ictus cerebrale ischemico o emorragico.                                                                                  |
+    | vasculopatiaperif                          | Boolean           | Malattia vascolare periferica documentata (es. arteriopatia arti inferiori).                                                                   |
+    | Anno_REDO                                  | Date              | Anno in cui è stato eseguito l'intervento cardiochirurgico o transcatetere pregresso.                                                          |
+    | Intervento_cardiochirurgico_pregresso      | Boolean           | Presenza di intervento cardiochirurgico pregresso (0/1).                                                                                      |
+    | Intervento_transcatetere_pregresso         | Boolean           | Presenza di intervento transcatetere pregresso (0/1).                                                                                          |
+    | Intervento_pregresso_descrizione           | Text              | Descrizione dell'intervento pregresso (può essere cardiochirurgico o transcatetere).                                                           |
+    | Terapia                                    | Text              | Terapia farmacologica in atto all'ingresso, **PRIMA dell'intervento**. Può essere estratta sia dall'anamnesi che dalla lettera di dimissione, ma deve riferirsi sempre al periodo pre-operatorio. |
+    | aceinib                                    | Boolean           | Uso di ACE-inibitori.                                                                                                                           |
+    | antiaggregante                             | Boolean           | Presenza di terapia antiaggregante (es. ASA, clopidogrel).                                                                                      |
+    | anticoagorali                              | Boolean           | Terapia anticoagulante in corso (es. warfarin, DOAC).                                                                                           |
+    | betabloc                                   | Boolean           | Uso di beta-bloccanti.                                                                                                                          |
+    | caantag                                    | Boolean           | Uso di calcio-antagonisti.                                                                                                                      |
+    | dapt                                       | Boolean           | Doppia antiaggregazione piastrinica (es. ASA + clopidogrel/prasugrel).                                                                          |
+    | lasix                                      | Boolean           | Uso documentato di furosemide (Lasix).                                                                                                          |
+    | lasix_dosaggio                             | Number            | Dosaggio giornaliero di furosemide in mg.                                                                                                       |
+    | altri_diuretici                            | Boolean           | Uso di altri diuretici oltre al Lasix.                                                                                                         |
+    | sartanici                                  | Boolean           | Uso di sartani (ARBs).                                                                                                                          |
+    | nitrati                                    | Boolean           | Assunzione di nitrati (vasodilatatori usati per l'angina).                                                                                      |
+    | statine                                    | Boolean           | Uso di statine.                                                                                                                                 |
+    | Insulina                                   | Boolean           | Uso di insulina.                                                                                                                                 |
+    | Metformina                                 | Boolean           | Uso di metformina.                                                                                                                              |
+    | anti_SGLT2                                 | Boolean           | Uso di anti-SGLT2 (inibitori del cotrasportatore sodio-glucosio di tipo 2).                                                                    |
+    | ARNI                                       | Boolean           | Uso di ARNI (Angiotensin Receptor Neprilysin Inhibitor, es. Entresto).                                                                          |
+    | Gliflozine                                 | Boolean           | Uso di gliflozine (classe di farmaci anti-SGLT2).                                                                                                |
+    | Entresto                                   | Boolean           | Uso di Entresto (sacubitril/valsartan, ARNI).                                                                                                   |
+    | Allergie                                   | Text              | Farmacoallergie/intolleranze.                                                                                                                   |
+    | Abitudini                                  | Text              | Fumo/alcol/altro, se presenti.                                                                                                                  |
+    | Comorbidita                                | Text              | Elenco o riassunto delle comorbidità.                                                                                                           |
+    | esami_all_ingresso                         | Text              | Labs/strumentali al ricovero preoperatorio.                                                                                                     |
+    | parametri                                  | Text              | Se presenti tabelle/elenco parametri: riportali come "chiave: valore" separati da "; " (senza unità di misura).                              |
+    
+    ---
+    
+    ### **Istruzioni IMPORTANTI:**
+    
     - Considera solo informazioni chiaramente riferite alla fase **preoperatoria** (in base alle date nel documento).
-    - Output = LISTA JSON di oggetti: { "entità": "<nome>", "valore": "<valore>" } — niente altro.
-    - NON inventare. Se un campo non è presente, omettilo.
-    - Se trovi tabelle/elenco (es. "Creatinina: 1.2 mg/dL", "FE: 45 %"), concatenali in **parametri** senza unità, in forma "Creatinina: 1.2; FE: 45".
+    - **REGOLA CRITICA PER TERAPIA**: La terapia deve essere quella **PRIMA dell'intervento**. Può essere estratta sia dall'anamnesi che dalla lettera di dimissione, ma utilizza sempre le date per escludere terapia chiaramente introdotta solo dopo l'intervento.
+    - **REGOLE SPECIALI**:
+        - **diabete**: Se la terapia comprende Insulina o Metformina, imposta `diabete = true` anche senza menzione esplicita di "diabete".
+        - **dislipidemia**: Se i valori di colesterolo > 200 mg/dL o trigliceridi > 150 mg/dL, oppure se è presente terapia con statine, imposta `dislipidemia = true`.
+        - **insufficienza_renale_cronica**: Se eGFR ml/min < 60, imposta `insufficienza_renale_cronica = true` anche senza frase esplicita.
+        - **ipertensione**: Se la terapia comprende aceinib, sartanici o caantag, imposta `ipertensione = true` anche senza dicitura esplicita.
+    - Non estrarre **nessuna entità** diversa da quelle elencate.
+    - Se un'entità non è presente nella lettera, **non inventarla** e **non includerla** nel risultato.
+    - I nomi delle entità possono essere acronimi o forme abbreviate: mappa sempre correttamente il significato clinico al nome di entità definito nella tabella.
+    - Cerca tutte le entità indicate.
+    - Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con **due chiavi**:
+        - `"entità"`: il nome dell'entità
+        - `"valore"`: il valore estratto dell'entità
+    **NON** aggiungere commenti, spiegazioni, note, intestazioni o altro: **solo** la lista JSON.
+    - Se trovi **tabelle**, **elenchi** o **parametri**, estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura).
+    - Se trovi **esami** o **strumentali** (ad esempio esami di laboratorio), estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura).
 ''',
     "epicrisi_ti": '''
     Sei un medico. Estrai ESCLUSIVAMENTE le seguenti entità dall’EPICRISI di Terapia Intensiva (periodo post‑operatorio immediato):
@@ -1084,22 +1378,25 @@ REGOLE:
     - data_intervento (Date)
 
     Tempi sala (Time):
-    - entratainsala, iniziointervento, iniziocec, inizioclamp, inizioacc,
-    fineacc, fineclamp, finecec, fineintervento, uscitasala
+    - INGRESSO_IN_SALA, INIZIO_TEMPO_CHIRURGICO, TEMPI_CCH_Inizio_CEC, TEMPI_CCH_Clamp_Ao,
+      TEMPI_CCH_Declamp_Ao, TEMPI_CCH_fine_CEC, FINE_TEMPO_CHIRURGICO, USCITA_DI_SALA
 
     Tecnica/setting:
-    - cec (Boolean), cardioplegia (Text), approcciochirurgico (Text)
-
-    Dettagli anestesia:
-    - anestesia (Text), farmaci_intraop (Text), eventi_intraop (Text)
-
-    Tabelle/parametri:
-    - parametri (Text) — se presenti tabelle/elenco, riportali come "chiave: valore" separati da "; " (senza unità).
+    - Cardioplegia (Text), Tipo_plegia (Text)
 
     REGOLE:
+    - Mappa i sinonimi per i tempi ai nuovi nomi standardizzati:
+      * "entratainsala", "entrata in sala" → INGRESSO_IN_SALA
+      * "iniziointervento", "incisione" → INIZIO_TEMPO_CHIRURGICO
+      * "iniziocec", "inizio CEC" → TEMPI_CCH_Inizio_CEC
+      * "inizioclamp", "clamp aortico", "clamp Ao" → TEMPI_CCH_Clamp_Ao
+      * "fineclamp", "declamp aortico", "declamp Ao" → TEMPI_CCH_Declamp_Ao
+      * "finecec", "fine CEC" → TEMPI_CCH_fine_CEC
+      * "fineintervento", "fine tempo chirurgico" → FINE_TEMPO_CHIRURGICO
+      * "uscitasala", "uscita sala" → USCITA_DI_SALA
     - Output = LISTA JSON di oggetti { "entità": "<nome>", "valore": "<valore>" } — niente altro.
     - NON inventare: ometti i campi non presenti.
-    - Accetta sinonimi per i tempi (es. “incisione”≈iniziointervento) mappandoli al campo corretto.
+    - Non estrarre entità diverse da quelle elencate sopra. (es. “incisione”≈iniziointervento) mappandoli al campo corretto.
 '''
     }
 
@@ -1127,3 +1424,4 @@ REGOLE:
         schema = self.get_schema_for(document_type)
         entities = list(schema.get("properties", {}).keys())
         return { "entities": entities }
+
