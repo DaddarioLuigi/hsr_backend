@@ -136,21 +136,166 @@ class PromptManager:
                 "bsa": { "type": "number" },
                 "data_esame": { "type": "string", "format": "date" },
                 "eco_text": { "type": "string" },         # riassunto referto
-                "parametri": { "type": "string" }        # cattura tabellari non mappati singolarmente
-            },
-            "required": ["n_cartella", "nome", "cognome"],
-            "additionalProperties": True
+                "parametri": { "type": "string" },        # cattura tabellari non mappati singolarmente
+                
+                #=======================
+                #VENTRICOLO SINISTRO (VSX)
+                #=======================
+                "Ventricolo_sinistro_GLS": { "type": "number" },
+                "Ventricolo_sinistro_diametro_telediastolico": { "type": "number" },
+                "Ventricolo_sinistro_setto_interventricolare_spessore_TD": { "type": "number" },
+                "Ventricolo_sinistro_parete_posteriore_spessore_TD": { "type": "number" },
+                "Ventricolo_sinistro_massa_indicizzata": { "type": "number" },
+                "Ventricolo_sinistro_relative_wall_thickness": { "type": "number" },
+                "Ventricolo_sinistro_volume_telediastolico_Simpson": { "type": "number" },
+                "Ventricolo_sinistro_volume_telediastolico_ind_Simpson": { "type": "number" },
+                "Ventricolo_sinistro_volume_telesistolico_Simpson": { "type": "number" },
+                "Ventricolo_sinistro_volume_telesistolico_ind_Simpson": { "type": "number" },
+                "Ventricolo_sinistro_FE": { "type": "number" },
+                "Ventricolo_sinistro_frazione_eiezione_Simpson": { "type": "number" },
+                "Ventricolo_sinistro_fractional_area_change": { "type": "number" },
+
+                #=======================
+                #VENTRICOLO DESTRO (VDX)
+                #=======================
+                "Ventricolo_destro_TAPSE": { "type": "number" },
+                "Ventricolo_destro_velocita_S_TDI": { "type": "number" },
+                "Ventricolo_destro_diametro_basale": { "type": "number" },
+                "Ventricolo_destro_diametro_medio": { "type": "number" },
+                "Ventricolo_destro_frac_wall_LS": { "type": "number" },
+                "Ventricolo_destro_PAPs": { "type": "number" },
+
+                #=======================
+                #ATRIO SINISTRO (ASX)
+                #======================= */
+                "Atrio_sinistro_volume_telesistolico": { "type": "number" },
+                "Atrio_sinistro_volume_telesistolico_indicizzato": { "type": "number" },
+
+                #=======================
+                #AORTA
+                #=======================
+                "Aorta_diametro_seni_Valsalva": { "type": "number" },
+                "Aorta_diametro_giunzione_seno_tubulare": { "type": "number" },
+                "Aorta_diametro_tratto_tubulare": { "type": "number" },
+                "Aorta_diametro_arco": { "type": "number" },
+
+                #=======================
+                #VALVOLA AORTICA
+                #=======================
+                "Valvola_aortica_insufficienza": { "type": "boolean" },
+                "Valvola_aortica_stenosi": { "type": "boolean" },
+                "Valvola_aortica_protesi_in_sede": { "type": "boolean" },
+                "Valvola_aortica_protesi_degenerata": { "type": "boolean" },
+                "Valvola_aortica_velocita_massima": { "type": "number" },
+                "Valvola_aortica_gradiente_massimo": { "type": "number" },
+                "Valvola_aortica_gradiente_medio": { "type": "number" },
+                "Valvola_aortica_AVA": { "type": "number" },
+                "Valvola_aortica_AVAi": { "type": "number" },
+                "Valvola_aortica_DVI": { "type": "number" },
+                "Valvola_aortica_bicuspide": { "type": "boolean" },
+                "Valvola_aortica_PVL": { "type": "boolean" },
+
+                #=======================
+                #VALVOLA MITRALE
+                #=======================
+                "Valvola_mitrale_insufficienza": { "type": "boolean" },
+                "Valvola_mitrale_stenosi": { "type": "boolean" },
+                "Valvola_mitrale_gradiente_medio": { "type": "number" },
+                "Valvola_mitrale_area_valvolare": { "type": "number" },
+                "Valvola_mitrale_annulus_AP": { "type": "number" },
+                "Valvola_mitrale_annulus_IC": { "type": "number" },
+                "Valvola_mitrale_distanza_SIV_C": { "type": "number" },
+                "Valvola_mitrale_angolo_MA": { "type": "number" },
+                "Valvola_mitrale_lunghezza_lembo_anteriore": { "type": "number" },
+                "Valvola_mitrale_lunghezza_lembo_posteriore": { "type": "number" },
+                "Valvola_mitrale_rapporto_LAM_LP": { "type": "number" },
+
+                "Valvola_mitrale_protesi_in_sede": { "type": "boolean" },
+                "Valvola_mitrale_protesi_degenerata": { "type": "boolean" },
+                "Valvola_mitrale_PVL": { "type": "boolean" },
+
+                "Valvola_mitrale_lesione_bilembo": { "type": "boolean" },
+                "Valvola_mitrale_lesione_anteriore": { "type": "boolean" },
+                "Valvola_mitrale_lesione_posteriore": { "type": "boolean" },
+
+                "Valvola_mitrale_scallop_A1": { "type": "boolean" },
+                "Valvola_mitrale_scallop_A2": { "type": "boolean" },
+                "Valvola_mitrale_scallop_A3": { "type": "boolean" },
+                "Valvola_mitrale_scallop_P1": { "type": "boolean" },
+                "Valvola_mitrale_scallop_P2": { "type": "boolean" },
+                "Valvola_mitrale_scallop_P3": { "type": "boolean" },
+
+                "Valvola_mitrale_tipo_lesione": {
+                    "type": "string",
+                    "enum": [
+                    "Ventricolare",
+                    "Atriale",
+                    "Mista",
+                    "Prolasso",
+                    "Flail",
+                    "Endocardite",
+                    "Interferenza elettrocatetere"
+                    ]
+                },
+                "Valvola_mitrale_eziologia": { "type": "string" },
+                "Valvola_mitrale_calcificazione_anello": { "type": "boolean" },
+                "Valvola_mitrale_calcificazione_lembi": { "type": "boolean" },
+                "Valvola_mitrale_presenza_cleft": { "type": "boolean" },
+                "Valvola_mitrale_localizzazione_cleft": { "type": "string" },
+
+                #=======================
+                #VALVOLA TRICUSPIDE
+                #=======================
+                "Valvola_tricuspide_diametro_setto_laterale": { "type": "number" },
+                "Valvola_tricuspide_diametro_setto_laterale_indicizzato": { "type": "number" },
+                "Valvola_tricuspide_insufficienza": { "type": "boolean" },
+                "Valvola_tricuspide_stenosi": { "type": "boolean" },
+                "Valvola_tricuspide_eziologia": { "type": "string" },
+
+                #=======================
+                #VALVOLA POLMONARE
+                #=======================
+                "Valvola_polmonare_insufficienza": { "type": "boolean" },
+                "Valvola_polmonare_stenosi": { "type": "boolean" }
+                },
+                "required": ["n_cartella", "nome", "cognome"],
+                "additionalProperties":True
+
         },
+
         "eco_postoperatorio": {
             "name": "eco_postoperatorio",
-            "title": "Scheda Ecocardiogramma Postoperatorio",
-            "type": "object",
-            "properties": {
-                "data_esame": { "type": "string", "format": "date" },
-                "eco_text": { "type": "string" }
-            },
-            "required": ["data_esame"]
+    "title": "Scheda Ecocardiogramma Postoperatorio",
+    "type": "object",
+    "properties": {
+      "data_esame": { "type": "string", "format": "date" },
+      "eco_text": { "type": "string" },
+      "parametri": { "type": "string" },
+      "VSX_FE": { "type": "string" },
+      
+      "Valvola_aortica_insufficienza": { "type": "string" },
+      "Valvola_aortica_stenosi": { "type": "string" },
+      "Valvola_aortica_velocita_max": { "type": "string" },
+      "Valvola_aortica_gradiente_max": { "type": "string" },
+      "Valvola_aortica_gradiente_med": { "type": "string" },
+      "Valvola_aortica_PVL": { "type": "string" },
+      
+      "Valvola_mitrale_insufficienza": { "type": "string" },
+      "Valvola_mitrale_stenosi": { "type": "string" },
+      "Valvola_mitrale_gradiente_med": { "type": "string" },
+      "Valvola_mitrale_PVL": { "type": "string" },
+      
+      "Valvola_tricuspidalica_insufficienza": { "type": "string" },
+      "Valvola_tricuspidalica_stenosi": { "type": "string" },
+      "Valvola_tricuspidalica_gradiente_med": { "type": "string" },
+      
+      "Valvola_polmonare_insufficienza": { "type": "string" },
+      "Valvola_polmonare_stenosi": { "type": "string" },
+      "Valvola_polmonare_gradiente_med": { "type": "string" }
+    },
+    "required": ["data_esame"]
         },
+
         "tc_cuore": {
             "name": "tc_cuore",
             "title": "Scheda TC Cuore",
@@ -461,87 +606,313 @@ IRC (crea all'ingresso 2,64 mg/dl).
         "coronarografia": '''
 Sei un medico specializzato in cardiologia interventistica. Il tuo compito è estrarre **esclusivamente** le seguenti entità dal referto di coronarografia:
 
-### Entità da estrarre (solo queste):
+### Entità da estrarre:
 
-| Entità                    | Tipo              |
-|--------------------------|-------------------|
-| n_cartella               | Number            |
-| nome                     | Text              |
-| cognome                  | Text              |
-| data_di_nascita          | Date              |
-| data_esame               | Date              |
-| coronarografia_text      | Text              |
-| coro_tc_stenosi50        | Boolean           |
-| coro_iva_stenosi50       | Boolean           |
-| coro_cx_stenosi50        | Boolean           |
-| coro_mo1_stenosi50       | Boolean           |
-| coro_mo2_stenosi50       | Boolean           |
-| coro_mo3_stenosi50       | Boolean           |
-| coro_int_stenosi50       | Boolean           |
-| coro_plcx_stenosi50      | Boolean           |
-| coro_dx_stenosi50        | Boolean           |
-| coro_pl_stenosi50        | Boolean           |
-| coro_ivp_stenosi50       | Boolean           |
+### Mappa delle entità e tipi
+| Entità              | Tipo    | Descrizione                                                                    |
+| ------------------- | ------- | ------------------------------------------------------------------------------ |
+| n_cartella          | Number  | Numero identificativo univoco della cartella clinica del paziente              |
+| nome                | Text    | Nome del paziente                                                              |
+| cognome             | Text    | Cognome del paziente                                                           |
+| data_di_nascita     | Date    | Data di nascita del paziente                                                   |
+| data_esame          | Date    | Data di esecuzione della coronarografia                                        |
+| coronarografia_text | Text    | Testo completo del referto di coronarografia (in Excel: `coronarografia_text`) |
+| coro_tc_stenosi50   | Boolean | Presenza di stenosi ≥50% del tronco comune                                     |
+| coro_iva_stenosi50  | Boolean | Presenza di stenosi ≥50% dell’arteria interventricolare anteriore (IVA)        |
+| coro_cx_stenosi50   | Boolean | Presenza di stenosi ≥50% dell’arteria circonflessa (CX)                        |
+| coro_mo1_stenosi50  | Boolean | Presenza di stenosi ≥50% del primo ramo marginale ottuso (MO1)                 |
+| coro_mo2_stenosi50  | Boolean | Presenza di stenosi ≥50% del secondo ramo marginale ottuso (MO2)               |
+| coro_mo3_stenosi50  | Boolean | Presenza di stenosi ≥50% del terzo ramo marginale ottuso (MO3)                 |
+| coro_int_stenosi50  | Boolean | Presenza di stenosi ≥50% del ramo intermedio                                   |
+| coro_plcx_stenosi50 | Boolean | Presenza di stenosi ≥50% del ramo posterolaterale della circonflessa           |
+| coro_dx_stenosi50   | Boolean | Presenza di stenosi ≥50% dell’arteria coronaria destra                         |
+| coro_pl_stenosi50   | Boolean | Presenza di stenosi ≥50% del ramo posterolaterale                              |
+| coro_ivp_stenosi50  | Boolean | Presenza di stenosi ≥50% dell’arteria interventricolare posteriore             |
+
 
 ---
 
-### Istruzioni IMPORTANTI:
+- Ragiona considerando **frase per frase** e sfrutta sempre le **date** (ingresso, intervento, dimissione, date degli esami) per distinguere ciò che è **pre-operatorio** da ciò che è **post-operatorio/dimissione**.
+- Non estrarre **nessuna entità** diversa da quelle elencate.
+- Se un'entità non è presente nella lettera, **non inventarla** e **non includerla** nel risultato.
+- I nomi delle entità possono essere acronimi o forme abbreviate: mappa sempre correttamente il significato clinico al nome di entità definito nella tabella.
+- Cerca tutte le entità indicate.
+- Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con **due chiavi**:
+    - `"entità"`: il nome dell'entità
+    - `"valore"`: il valore estratto dell'entità
+**NON** aggiungere commenti, spiegazioni, note, intestazioni o altro: **solo** la lista JSON.
+-Se trovi **tabelle**, **elenchi** o **parametri** , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura).
+-Se trovi **esami** o **strumentali** (ad esempio esami di laboratorio) , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura). 
 
-- Ragiona considerando frase per frase.
-- Non estrarre nessuna entità diversa da quelle elencate.
-- Se un'entità non è presente nel referto, non inventarla e non includerla nel risultato.
-- Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con due chiavi:
-    - "entità": il nome dell'entità
-    - "valore": il valore estratto dell'entità
-NON aggiungere commenti, spiegazioni, note, intestazioni o altro: solo la lista JSON.
+---
+ Questo è un esempio di input per capire il formato di output:
+###Esempio di input(esempio parziale della lettera di dimission)
+Si dimette in data 02/09/2019
+il Sig. BERTOLOTTI FRANCO
+Nato il 27/03/1939 telefono 3479927663
+ricoverato presso questo ospedale dal 27/08/2019
+Numero Cartella 2019034139
 
-Esempio di output:
+Diagnosi alla dimissione:
+Intervento di plastica valvolare mitralica per via percutanea mediante posizionamento di duplice dispositivo Mitraclip.
+
+Motivo del Ricovero:
+Insufficienza mitralica in status post rivascolarizzazione miocardica chirurgica mediante triplice bypass coronarico.
+
+Cenni Anamnestici:
+Paziente nega farmacoallergie.
+Familiarità positiva per cardiopatia ischemica (padre).
+Ex fumatore, stop nel 1990 (1 pack/die).
+Diabete mellito in tp ipoglicemizzante orale.
+IRC (crea all'ingresso 2,64 mg/dl).
+
+
+---
+
+###Esmpio output(esempio parziale in JSON):
 
 ```json
 [
-  { "entità": "n_cartella", "valore": "2025003002" },
-  { "entità": "nome", "valore": "MASSIMO" },
-  { "entità": "cognome", "valore": "RICCA" },
-  { "entità": "data_di_nascita", "valore": "17/02/1966" },
-  { "entità": "data_esame", "valore": "12/06/2025" },
-  { "entità": "coronarografia_text", "valore": "Paziente sottoposto a coronarografia..." },
-  { "entità": "coro_tc_stenosi50", "valore": true },
-  { "entità": "coro_iva_stenosi50", "valore": false }
-  ...
+  { "entità": "data_dimissione_cch", "valore": "02/09/2019" },
+  { "entità": "nome", "valore": "FRANCO" },
+  { "entità": "cognome", "valore": "BERTOLOTTI" },
+  { "entità": "data_di_nascita", "valore": "27/03/1939" },
+  { "entità": "numero di telefono", "valore": "3479927663" },
+  { "entità": "data_ingresso_cch", "valore": "27/08/2019" },
+  { "entità": "n_cartella", "valore": "2019034139" },
+  { "entità": "Diagnosi text", "valore": "Intervento di plastica valvolare mitralica per via percutanea mediante posizionamento di duplice dispositivo Mitraclip." },
+  { "entità": "Motivo ricovero", "valore": "Insufficienza mitralica in status post rivascolarizzazione miocardica chirurgica mediante triplice bypass coronarico." },
+  { "entità": "fumo", "valore": true },
+  { "entità": "diabete", "valore": true },
+  { "entità": "insufficienza renale cronica", "valore": true },
+  { "entità": "familiarita cardiovascolare", "valore": true },
+  { "entità": "emocromo", "valore": "4.5" },
+  { "entità": "creatinina", "valore": "1.2" }
 ]
+
 ''',
         "eco_preoperatorio": '''
 Sei un medico specializzato in cardiochirurgia.
 Estrai le seguenti entità dall’ecocardiogramma **preoperatorio**:
+### Entità da estrarre:
 
-- n_cartella (Number), nome (Text), cognome (Text), data_di_nascita (Date)
-- altezza (Number), peso (Number), bmi (Number), bsa (Number)
-- data_esame (Date)
-- eco_text (Text)              # riassunto/valutazione
-- parametri (Text)             # se trovi tabelle/elenco parametri non standard o tabelle strutturate
+### Mappa delle entità e tipi
+| Entità                                                  | Tipo    | Descrizione                                                                                                                                  |
+| ------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| n_cartella                                              | Number  | Numero identificativo univoco della cartella clinica del paziente                                                                            |
+| nome                                                    | Text    | Nome del paziente                                                                                                                            |
+| cognome                                                 | Text    | Cognome del paziente                                                                                                                         |
+| data_di_nascita                                         | Date    | Data di nascita del paziente                                                                                                                 |
+| altezza                                                 | Number  | Altezza del paziente in centimetri                                                                                                           |
+| peso                                                    | Number  | Peso del paziente in chilogrammi                                                                                                             |
+| bmi                                                     | Number  | Body Mass Index                                                                                                                              |
+| bsa                                                     | Number  | Body Surface Area                                                                                                                            |
+| data_esame                                              | Date    | Data di esecuzione dell’ecocardiogramma                                                                                                      |
+| eco_text                                                | Text    | Riassunto testuale del referto ecocardiografico                                                                                              |
+| parametri                                               | Text    | Parametri tabellari non mappati singolarmente                                                                                                |
+| Ventricolo_sinistro_GLS                                 | Number  | Global Longitudinal Strain del ventricolo sinistro                                                                                           |
+| Ventricolo_sinistro_diametro_telediastolico             | Number  | Diametro telediastolico del ventricolo sinistro                                                                                              |
+| Ventricolo_sinistro_setto_interventricolare_spessore_TD | Number  | Spessore telediastolico del setto interventricolare                                                                                          |
+| Ventricolo_sinistro_parete_posteriore_spessore_TD       | Number  | Spessore telediastolico della parete posteriore                                                                                              |
+| Ventricolo_sinistro_massa_indicizzata                   | Number  | Massa ventricolare sinistra indicizzata                                                                                                      |
+| Ventricolo_sinistro_relative_wall_thickness             | Number  | Relative Wall Thickness                                                                                                                      |
+| Ventricolo_sinistro_volume_telediastolico_Simpson       | Number  | Volume telediastolico secondo Simpson                                                                                                        |
+| Ventricolo_sinistro_volume_telediastolico_ind_Simpson   | Number  | Volume telediastolico indicizzato secondo Simpson                                                                                            |
+| Ventricolo_sinistro_volume_telesistolico_Simpson        | Number  | Volume telesistolico secondo Simpson                                                                                                         |
+| Ventricolo_sinistro_volume_telesistolico_ind_Simpson    | Number  | Volume telesistolico indicizzato secondo Simpson                                                                                             |
+| Ventricolo_sinistro_FE                                  | Number  | Frazione di eiezione del ventricolo sinistro                                                                                                 |
+| Ventricolo_sinistro_frazione_eiezione_Simpson           | Number  | Frazione di eiezione calcolata con metodo Simpson                                                                                            |
+| Ventricolo_sinistro_fractional_area_change              | Number  | Fractional Area Change                                                                                                                       |
+| Ventricolo_destro_TAPSE                                 | Number  | TAPSE del ventricolo destro                                                                                                                  |
+| Ventricolo_destro_velocita_S_TDI                        | Number  | Velocità S al TDI del ventricolo destro                                                                                                      |
+| Ventricolo_destro_diametro_basale                       | Number  | Diametro basale del ventricolo destro                                                                                                        |
+| Ventricolo_destro_diametro_medio                        | Number  | Diametro medio del ventricolo destro                                                                                                         |
+| Ventricolo_destro_frac_wall_LS                          | Number  | Longitudinal strain della parete libera del ventricolo destro                                                                                |
+| Ventricolo_destro_PAPs                                  | Number  | Pressione arteriosa polmonare sistolica                                                                                                      |
+| Atrio_sinistro_volume_telesistolico                     | Number  | Volume telesistolico dell’atrio sinistro                                                                                                     |
+| Atrio_sinistro_volume_telesistolico_indicizzato         | Number  | Volume telesistolico indicizzato dell’atrio sinistro                                                                                         |
+| Aorta_diametro_seni_Valsalva                            | Number  | Diametro dei seni di Valsalva                                                                                                                |
+| Aorta_diametro_giunzione_seno_tubulare                  | Number  | Diametro della giunzione seno-tubulare                                                                                                       |
+| Aorta_diametro_tratto_tubulare                          | Number  | Diametro del tratto tubulare dell’aorta                                                                                                      |
+| Aorta_diametro_arco                                     | Number  | Diametro dell’arco aortico                                                                                                                   |
+| Valvola_aortica_insufficienza                           | Boolean | Presenza di insufficienza aortica                                                                                                            |
+| Valvola_aortica_stenosi                                 | Boolean | Presenza di stenosi aortica                                                                                                                  |
+| Valvola_aortica_protesi_in_sede                         | Boolean | Presenza di protesi valvolare aortica                                                                                                        |
+| Valvola_aortica_protesi_degenerata                      | Boolean | Segni di degenerazione della protesi aortica                                                                                                 |
+| Valvola_aortica_velocita_massima                        | Number  | Velocità massima transvalvolare aortica                                                                                                      |
+| Valvola_aortica_gradiente_massimo                       | Number  | Gradiente massimo transaortico                                                                                                               |
+| Valvola_aortica_gradiente_medio                         | Number  | Gradiente medio transaortico                                                                                                                 |
+| Valvola_aortica_AVA                                     | Number  | Area valvolare aortica                                                                                                                       |
+| Valvola_aortica_AVAi                                    | Number  | Area valvolare aortica indicizzata                                                                                                           |
+| Valvola_aortica_DVI                                     | Number  | Doppler Velocity Index                                                                                                                       |
+| Valvola_aortica_bicuspide                               | Boolean | Valvola aortica bicuspide                                                                                                                    |
+| Valvola_aortica_PVL                                     | Boolean | Leak perivalvolare aortico                                                                                                                   |
+| Valvola_mitrale_insufficienza                           | Boolean | Presenza di insufficienza mitralica                                                                                                          |
+| Valvola_mitrale_stenosi                                 | Boolean | Presenza di stenosi mitralica                                                                                                                |
+| Valvola_mitrale_gradiente_medio                         | Number  | Gradiente medio trans-mitralico                                                                                                              |
+| Valvola_mitrale_area_valvolare                          | Number  | Area valvolare mitralica                                                                                                                     |
+| Valvola_mitrale_annulus_AP                              | Number  | Diametro antero-posteriore dell’anulus mitralico                                                                                             |
+| Valvola_mitrale_annulus_IC                              | Number  | Diametro inter-commissurale dell’anulus mitralico                                                                                            |
+| Valvola_mitrale_distanza_SIV_C                          | Number  | Distanza setto interventricolare–coaptazione                                                                                                 |
+| Valvola_mitrale_angolo_MA                               | Number  | Angolo mitro-aortico                                                                                                                         |
+| Valvola_mitrale_lunghezza_lembo_anteriore               | Number  | Lunghezza del lembo anteriore mitralico                                                                                                      |
+| Valvola_mitrale_lunghezza_lembo_posteriore              | Number  | Lunghezza del lembo posteriore mitralico                                                                                                     |
+| Valvola_mitrale_rapporto_LAM_LP                         | Number  | Rapporto tra lembo anteriore e posteriore                                                                                                    |
+| Valvola_mitrale_protesi_in_sede                         | Boolean | Presenza di protesi mitralica                                                                                                                |
+| Valvola_mitrale_protesi_degenerata                      | Boolean | Degenerazione della protesi mitralica                                                                                                        |
+| Valvola_mitrale_PVL                                     | Boolean | Leak perivalvolare mitralico                                                                                                                 |
+| Valvola_mitrale_lesione_bilembo                         | Boolean | Coinvolgimento di entrambi i lembi                                                                                                           |
+| Valvola_mitrale_lesione_anteriore                       | Boolean | Coinvolgimento del lembo anteriore                                                                                                           |
+| Valvola_mitrale_lesione_posteriore                      | Boolean | Coinvolgimento del lembo posteriore                                                                                                          |
+| Valvola_mitrale_scallop_A1                              | Boolean | Coinvolgimento scallop A1                                                                                                                    |
+| Valvola_mitrale_scallop_A2                              | Boolean | Coinvolgimento scallop A2                                                                                                                    |
+| Valvola_mitrale_scallop_A3                              | Boolean | Coinvolgimento scallop A3                                                                                                                    |
+| Valvola_mitrale_scallop_P1                              | Boolean | Coinvolgimento scallop P1                                                                                                                    |
+| Valvola_mitrale_scallop_P2                              | Boolean | Coinvolgimento scallop P2                                                                                                                    |
+| Valvola_mitrale_scallop_P3                              | Boolean | Coinvolgimento scallop P3                                                                                                                    |
+| Valvola_mitrale_tipo_lesione                            | Enum    | **Tipo di lesione mitralica da cercare nel testo**: Ventricolare, Atriale, Mista, Prolasso, Flail, Endocardite, Interferenza elettrocatetere |
+| Valvola_mitrale_eziologia                               | Text    | Eziologia clinica dell’insufficienza mitralica (degenerativa, funzionale, ischemica, reumatica, ecc.)                                        |
+| Valvola_mitrale_calcificazione_anello                   | Boolean | Presenza di calcificazione dell’anello mitralico                                                                                             |
+| Valvola_mitrale_calcificazione_lembi                    | Boolean | Presenza di calcificazione dei lembi                                                                                                         |
+| Valvola_mitrale_presenza_cleft                          | Boolean | Presenza di cleft mitralico                                                                                                                  |
+| Valvola_mitrale_localizzazione_cleft                    | Text    | Localizzazione del cleft                                                                                                                     |
+| Valvola_tricuspide_diametro_setto_laterale              | Number  | Diametro setto-laterale dell’anulus tricuspide                                                                                               |
+| Valvola_tricuspide_diametro_setto_laterale_indicizzato  | Number  | Diametro setto-laterale indicizzato                                                                                                          |
+| Valvola_tricuspide_insufficienza                        | Boolean | Presenza di insufficienza tricuspide                                                                                                         |
+| Valvola_tricuspide_stenosi                              | Boolean | Presenza di stenosi tricuspide                                                                                                               |
+| Valvola_tricuspide_eziologia                            | Text    | Eziologia della patologia tricuspide                                                                                                         |
+| Valvola_polmonare_insufficienza                         | Boolean | Presenza di insufficienza polmonare                                                                                                          |
+| Valvola_polmonare_stenosi                               | Boolean | Presenza di stenosi polmonare                                                                                                                |
 
-Istruzioni:
+
+
+### **Istruzioni IMPORTANTI:**
+
 - Considera che molti parametri ecocardiografici appartengono a **sezioni** specifiche (es. Ventricolo sinistro, Ventricolo destro, Valvola aortica, Valvola mitrale, Valvola tricuspide, Valvola polmonare).
 - Quando riporti coppie chiave‑valore in **parametri**, anteponi sempre il nome della sezione alla variabile, in forma `Sezione_nome_variabile`.
   - Esempi: `Ventricolo_sinistro_GLS: -18`, `Ventricolo_sinistro_FE: 45`, `Valvola_aortica_gradiente_max_aortica: 40`, `Valvola_mitralica_TAPSE: 17`.
 - Se trovi tabelle/elenco parametri (es. "FE: 45 %", "TAPSE: 17 mm"), estrai ciascuna coppia nel campo **parametri** come testo strutturato `"Sezione_nome_variabile: valore"` separati da **punto e virgola**.
-- Non aggiungere unità di misura in `valore` (solo il numero o la stringa pulita).
-- Output = **solo** una lista JSON di oggetti `{"entità": <nome>, "valore": <valore>}`. Nessun altro testo.
+- Ragiona considerando **frase per frase** e sfrutta sempre le **date** (ingresso, intervento, dimissione, date degli esami) per distinguere ciò che è **pre-operatorio** da ciò che è **post-operatorio/dimissione**.
+- Non estrarre **nessuna entità** diversa da quelle elencate.
+- Se un'entità non è presente nella lettera, **non inventarla** e **non includerla** nel risultato.
+- I nomi delle entità possono essere acronimi o forme abbreviate: mappa sempre correttamente il significato clinico al nome di entità definito nella tabella.
+- Cerca tutte le entità indicate.
+- Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con **due chiavi**:
+    - `"entità"`: il nome dell'entità
+    - `"valore"`: il valore estratto dell'entità
+**NON** aggiungere commenti, spiegazioni, note, intestazioni o altro: **solo** la lista JSON.
+-Se trovi **tabelle**, **elenchi** o **parametri** , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura).
+-Se trovi **esami** o **strumentali** (ad esempio esami di laboratorio) , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura). - Output = **solo** una lista JSON di oggetti `{"entità": <nome>, "valore": <valore>}`. Nessun altro testo.
+
+questi esempi servono per capire il fromato di output
+###Esempio di input(esempio parziale della lettera di dimissione)
+Si dimette in data 02/09/2019
+il Sig. BERTOLOTTI FRANCO
+Nato il 27/03/1939 telefono 3479927663
+ricoverato presso questo ospedale dal 27/08/2019
+Numero Cartella 2019034139
+
+Diagnosi alla dimissione:
+Intervento di plastica valvolare mitralica per via percutanea mediante posizionamento di duplice dispositivo Mitraclip.
+
+Motivo del Ricovero:
+Insufficienza mitralica in status post rivascolarizzazione miocardica chirurgica mediante triplice bypass coronarico.
+
+Cenni Anamnestici:
+Paziente nega farmacoallergie.
+Familiarità positiva per cardiopatia ischemica (padre).
+Ex fumatore, stop nel 1990 (1 pack/die).
+Diabete mellito in tp ipoglicemizzante orale.
+IRC (crea all'ingresso 2,64 mg/dl).
+---
+
+###Esmpio output(esempio parziale in JSON):
+
+```json
+[
+  { "entità": "data_dimissione_cch", "valore": "02/09/2019" },
+  { "entità": "nome", "valore": "FRANCO" },
+  { "entità": "cognome", "valore": "BERTOLOTTI" },
+  { "entità": "data_di_nascita", "valore": "27/03/1939" },
+  { "entità": "numero di telefono", "valore": "3479927663" },
+  { "entità": "data_ingresso_cch", "valore": "27/08/2019" },
+  { "entità": "n_cartella", "valore": "2019034139" },
+  { "entità": "Diagnosi text", "valore": "Intervento di plastica valvolare mitralica per via percutanea mediante posizionamento di duplice dispositivo Mitraclip." },
+  { "entità": "Motivo ricovero", "valore": "Insufficienza mitralica in status post rivascolarizzazione miocardica chirurgica mediante triplice bypass coronarico." },
+  { "entità": "fumo", "valore": true },
+  { "entità": "diabete", "valore": true },
+  { "entità": "insufficienza renale cronica", "valore": true },
+  { "entità": "familiarita cardiovascolare", "valore": true },
+  { "entità": "emocromo", "valore": "4.5" },
+  { "entità": "creatinina", "valore": "1.2" }
+]
 ''',
+
+
         "eco_postoperatorio": '''
-Sei un medico specializzato in cardiochirurgia. Estrai ESCLUSIVAMENTE:
+Sei un medico specializzato in cardiochirurgia.
+Estrai le seguenti entità dall’ecocardiogramma **postoperatorio**
+### **Istruzioni IMPORTANTI:**
 
-- data_esame (Date)
-- eco_text (Text)
-- parametri (Text)  # opzionale: se presenti tabelle/elenco parametri
+- Considera che molti parametri ecocardiografici appartengono a **sezioni** specifiche (es. Ventricolo sinistro, Ventricolo destro, Valvola aortica, Valvola mitrale, Valvola tricuspide, Valvola polmonare).
+- Quando riporti coppie chiave‑valore in **parametri**, anteponi sempre il nome della sezione alla variabile, in forma `Sezione_nome_variabile`.
+  - Esempi: `Ventricolo_sinistro_GLS: -18`, `Ventricolo_sinistro_FE: 45`, `Valvola_aortica_gradiente_max_aortica: 40`, `Valvola_mitralica_TAPSE: 17`.
+- Se trovi tabelle/elenco parametri (es. "FE: 45 %", "TAPSE: 17 mm"), estrai ciascuna coppia nel campo **parametri** come testo strutturato `"Sezione_nome_variabile: valore"` separati da **punto e virgola**.
+- Ragiona considerando **frase per frase** e sfrutta sempre le **date** (ingresso, intervento, dimissione, date degli esami) per distinguere ciò che è **pre-operatorio** da ciò che è **post-operatorio/dimissione**.
+- Non estrarre **nessuna entità** diversa da quelle elencate.
+- Se un'entità non è presente nella lettera, **non inventarla** e **non includerla** nel risultato.
+- I nomi delle entità possono essere acronimi o forme abbreviate: mappa sempre correttamente il significato clinico al nome di entità definito nella tabella.
+- Cerca tutte le entità indicate.
+- Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con **due chiavi**:
+    - `"entità"`: il nome dell'entità
+    - `"valore"`: il valore estratto dell'entità
+**NON** aggiungere commenti, spiegazioni, note, intestazioni o altro: **solo** la lista JSON.
+-Se trovi **tabelle**, **elenchi** o **parametri** , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura).
+-Se trovi **esami** o **strumentali** (ad esempio esami di laboratorio) , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura). - Output = **solo** una lista JSON di oggetti `{"entità": <nome>, "valore": <valore>}`. Nessun altro testo.
 
-Regole per `parametri`:
-- Se presenti tabelle parametriche, utilizza la stessa logica dell’ecocardiogramma preoperatorio:
-  - anteponi il nome della sezione (es. Ventricolo_sinistro, Valvola_aortica, Valvola_mitralica, ecc.) al nome della variabile;
-  - usa il formato `"Sezione_nome_variabile: valore"` separando le coppie con `;`.
-- Non includere unità di misura nel valore.
+questi esempi servono per capire il fromato di output
 
-Output: **solo** una lista JSON di `{"entità": <nome>, "valore": <valore>}`. Non inventare campi assenti.
+###Esempio di input(esempio parziale della lettera di dimissione)
+Si dimette in data 02/09/2019
+il Sig. BERTOLOTTI FRANCO
+Nato il 27/03/1939 telefono 3479927663
+ricoverato presso questo ospedale dal 27/08/2019
+Numero Cartella 2019034139
+
+Diagnosi alla dimissione:
+Intervento di plastica valvolare mitralica per via percutanea mediante posizionamento di duplice dispositivo Mitraclip.
+
+Motivo del Ricovero:
+Insufficienza mitralica in status post rivascolarizzazione miocardica chirurgica mediante triplice bypass coronarico.
+
+Cenni Anamnestici:
+Paziente nega farmacoallergie.
+Familiarità positiva per cardiopatia ischemica (padre).
+Ex fumatore, stop nel 1990 (1 pack/die).
+Diabete mellito in tp ipoglicemizzante orale.
+IRC (crea all'ingresso 2,64 mg/dl).
+---
+
+###Esmpio output(esempio parziale in JSON):
+
+```json
+[
+  { "entità": "data_dimissione_cch", "valore": "02/09/2019" },
+  { "entità": "nome", "valore": "FRANCO" },
+  { "entità": "cognome", "valore": "BERTOLOTTI" },
+  { "entità": "data_di_nascita", "valore": "27/03/1939" },
+  { "entità": "numero di telefono", "valore": "3479927663" },
+  { "entità": "data_ingresso_cch", "valore": "27/08/2019" },
+  { "entità": "n_cartella", "valore": "2019034139" },
+  { "entità": "Diagnosi text", "valore": "Intervento di plastica valvolare mitralica per via percutanea mediante posizionamento di duplice dispositivo Mitraclip." },
+  { "entità": "Motivo ricovero", "valore": "Insufficienza mitralica in status post rivascolarizzazione miocardica chirurgica mediante triplice bypass coronarico." },
+  { "entità": "fumo", "valore": true },
+  { "entità": "diabete", "valore": true },
+  { "entità": "insufficienza renale cronica", "valore": true },
+  { "entità": "familiarita cardiovascolare", "valore": true },
+  { "entità": "emocromo", "valore": "4.5" },
+  { "entità": "creatinina", "valore": "1.2" }
+]
 ''',
         "tc_cuore": '''
 Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre **esclusivamente** le seguenti entità dal referto di TC Cuore:
@@ -581,15 +952,62 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre **esc
 
 ---
 
-### Istruzioni IMPORTANTI:
+### **Istruzioni IMPORTANTI:**
+- Ragiona considerando **frase per frase** e sfrutta sempre le **date** (ingresso, intervento, dimissione, date degli esami) per distinguere ciò che è **pre-operatorio** da ciò che è **post-operatorio/dimissione**.
+- Non estrarre **nessuna entità** diversa da quelle elencate.
+- Se un'entità non è presente nella lettera, **non inventarla** e **non includerla** nel risultato.
+- I nomi delle entità possono essere acronimi o forme abbreviate: mappa sempre correttamente il significato clinico al nome di entità definito nella tabella.
+- Cerca tutte le entità indicate.
+- Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con **due chiavi**:
+    - `"entità"`: il nome dell'entità
+    - `"valore"`: il valore estratto dell'entità
+**NON** aggiungere commenti, spiegazioni, note, intestazioni o altro: **solo** la lista JSON.
+-Se trovi **tabelle**, **elenchi** o **parametri** , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura).
+-Se trovi **esami** o **strumentali** (ad esempio esami di laboratorio) , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura). 
+---
+ Questo è un esempio di input per capire il formato di output:
+###Esempio di input(esempio parziale della lettera di dimission)
+Si dimette in data 02/09/2019
+il Sig. BERTOLOTTI FRANCO
+Nato il 27/03/1939 telefono 3479927663
+ricoverato presso questo ospedale dal 27/08/2019
+Numero Cartella 2019034139
 
-- Ragiona considerando frase per frase.
-- Non estrarre nessuna entità diversa da quelle elencate.
-- Se un'entità non è presente, non inventarla.
-- Il formato di output deve essere una lista JSON con:
-    - "entità": nome dell'entità
-    - "valore": valore estratto
-Nessun commento o testo aggiuntivo.
+Diagnosi alla dimissione:
+Intervento di plastica valvolare mitralica per via percutanea mediante posizionamento di duplice dispositivo Mitraclip.
+
+Motivo del Ricovero:
+Insufficienza mitralica in status post rivascolarizzazione miocardica chirurgica mediante triplice bypass coronarico.
+
+Cenni Anamnestici:
+Paziente nega farmacoallergie.
+Familiarità positiva per cardiopatia ischemica (padre).
+Ex fumatore, stop nel 1990 (1 pack/die).
+Diabete mellito in tp ipoglicemizzante orale.
+IRC (crea all'ingresso 2,64 mg/dl).
+
+---
+
+###Esmpio output(esempio parziale in JSON):
+```json
+[
+  { "entità": "data_dimissione_cch", "valore": "02/09/2019" },
+  { "entità": "nome", "valore": "FRANCO" },
+  { "entità": "cognome", "valore": "BERTOLOTTI" },
+  { "entità": "data_di_nascita", "valore": "27/03/1939" },
+  { "entità": "numero di telefono", "valore": "3479927663" },
+  { "entità": "data_ingresso_cch", "valore": "27/08/2019" },
+  { "entità": "n_cartella", "valore": "2019034139" },
+  { "entità": "Diagnosi text", "valore": "Intervento di plastica valvolare mitralica per via percutanea mediante posizionamento di duplice dispositivo Mitraclip." },
+  { "entità": "Motivo ricovero", "valore": "Insufficienza mitralica in status post rivascolarizzazione miocardica chirurgica mediante triplice bypass coronarico." },
+  { "entità": "fumo", "valore": true },
+  { "entità": "diabete", "valore": true },
+  { "entità": "insufficienza renale cronica", "valore": true },
+  { "entità": "familiarita cardiovascolare", "valore": true },
+  { "entità": "emocromo", "valore": "4.5" },
+  { "entità": "creatinina", "valore": "1.2" }
+]
+
 ''',
         "intervento": '''
 Sei un cardiochirurgo. Estrai le seguenti entità dal referto di intervento/verbale operatorio.
