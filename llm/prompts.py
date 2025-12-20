@@ -89,11 +89,127 @@ class PromptManager:
                 "Causa_morte": { "type": "string" },
                 "data_morte": { "type": "string", "format": "date" },
                 "esami_alla_dimissione": { "type": "string" },
-                "terapia_alla_dimissione": { "type": "string" }
+                "terapia_alla_dimissione": { "type": "string" },
+
+                "edemi_declivi": { "type": "boolean" },
+                "ascite": { "type": "boolean" },
+
+                "intervento_cardiochirurgico_pregresso": { "type": "boolean" },
+                "intervento_transcatetere_pregresso": { "type": "boolean" },
+                "intervento_pregresso_descrizione": { "type": "string" },
+                "altri_diuretici": { "type": "boolean" },
+                
+                "statine": { "type": "boolean" },
+
+                "insulina": { "type": "boolean" },
+                "metformina": { "type": "boolean" },
+                "anti_SGLT2": { "type": "boolean" },
+
+                "ARNI": { "type": "boolean" },
+                "Anno_REDO": { "type": "string", "format": "date" },
+
+                "pre_esami_laboratorio": { "type": "string" },
+                "post_esami_laboratorio": { "type": "string" },
+
+                "pre_EMOCROMO_Globuli_rossi": { "type": "number" },
+                "post_EMOCROMO_Globuli_rossi": { "type": "number" },
+
+                "pre_EMOCROMO_Globuli_bianchi": { "type": "number" },
+                "post_EMOCROMO_Globuli_bianchi": { "type": "number" },
+
+                "pre_EMOCROMO_Ematocrito": { "type": "number" },
+                "post_EMOCROMO_Ematocrito": { "type": "number" },
+
+                "pre_EMOCROMO_Emoglobina": { "type": "number" },
+                "post_EMOCROMO_Emoglobina": { "type": "number" },
+
+                "pre_PIASTRINE_Piastrine": { "type": "number" },
+                "post_PIASTRINE_Piastrine": { "type": "number" },
+
+                "pre_S_GLUCOSIO": { "type": "number" },
+                "post_S_GLUCOSIO": { "type": "number" },
+
+                "pre_S_UREA": { "type": "number" },
+                "post_S_UREA": { "type": "number" },
+
+                "pre_S_CREATININA": { "type": "number" },
+                "post_S_CREATININA": { "type": "number" },
+
+                "pre_eGFR_ml_min": { "type": "number" },
+                "post_eGFR_ml_min": { "type": "number" },
+
+                "pre_S_SODIO": { "type": "number" },
+                "post_S_SODIO": { "type": "number" },
+
+                "pre_S_POTASSIO": { "type": "number" },
+                "post_S_POTASSIO": { "type": "number" },
+
+                "pre_S_CALCIO": { "type": "number" },
+                "post_S_CALCIO": { "type": "number" },
+
+                "pre_S_BILIRUBINA_TOTALE": { "type": "number" },
+                "post_S_BILIRUBINA_TOTALE": { "type": "number" },
+
+                "pre_S_BILIRUBINA_DIRETTA": { "type": "number" },
+                "post_S_BILIRUBINA_DIRETTA": { "type": "number" },
+
+                "pre_S_BILIRUBINA_INDIRETTA": { "type": "number" },
+                "post_S_BILIRUBINA_INDIRETTA": { "type": "number" },
+
+                "pre_S_ASPARTATO_AMINOTRANSFERASI": { "type": "number" },
+                "post_S_ASPARTATO_AMINOTRANSFERASI": { "type": "number" },
+
+                "pre_S_GAMMAGLUTAMILTRANSFERASI": { "type": "number" },
+                "post_S_GAMMAGLUTAMILTRANSFERASI": { "type": "number" },
+
+                "pre_S_FOSFATASI_ALCALINA": { "type": "number" },
+                "post_S_FOSFATASI_ALCALINA": { "type": "number" },
+
+                "pre_S_LATTICODEIDROGENASI": { "type": "number" },
+                "post_S_LATTICODEIDROGENASI": { "type": "number" },
+
+                "pre_S_FERRO": { "type": "number" },
+                "post_S_FERRO": { "type": "number" },
+
+                "pre_S_TRANSFERRINA": { "type": "number" },
+                "post_S_TRANSFERRINA": { "type": "number" },
+
+                "pre_S_ALBUMINA": { "type": "number" },
+                "post_S_ALBUMINA": { "type": "number" },
+
+                "pre_S_PROTEINA_C_REATTIVA": { "type": "number" },
+                "post_S_PROTEINA_C_REATTIVA": { "type": "number" },
+
+                "pre_S_TRIGLICERIDI": { "type": "number" },
+                "post_S_TRIGLICERIDI": { "type": "number" },
+
+                "pre_S_COLESTEROLO": { "type": "number" },
+                "post_S_COLESTEROLO": { "type": "number" },
+
+                "pre_S_TROPONINA_T": { "type": "number" },
+                "post_S_TROPONINA_T": { "type": "number" },
+
+                "pre_S_CREATINFOSFOCHINASI": { "type": "number" },
+                "post_S_CREATINFOSFOCHINASI": { "type": "number" },
+
+                "pre_PT_INR_International_Normalized_Ratio": { "type": "number" },
+                "post_PT_INR_International_Normalized_Ratio": { "type": "number" },
+
+                "pre_PT_Rapporto": { "type": "number" },
+                "post_PT_Rapporto": { "type": "number" },
+
+                "pre_APTT_Secondi": { "type": "number" },
+                "post_APTT_Secondi": { "type": "number" },
+
+                "pre_S_PROPEPTIDE_NATRIURETICO_NT_proBNP": { "type": "number" },
+                "post_S_PROPEPTIDE_NATRIURETICO_NT_proBNP": { "type": "number" }
+
+                
             },
             "required": ["n_cartella", "nome", "cognome"],
             "additionalProperties": True
         },
+
         "coronarografia": {
             "name": "coronarografia",
             "title": "Scheda Coronarografia",
@@ -376,7 +492,19 @@ class PromptManager:
                 "eziologia_valvolare 1": { "type": "string" },
 
                 # Testo libero (riassunto verbale operatorio)
-                "intervento text": { "type": "string" }
+                "intervento text": { "type": "string" },
+                "edemi_declivi": {"type": "boolean"},
+                "ascite": {"type": "boolean"},
+                "intervento_cardiochirurgico_pregresso": {"type": "boolean"},
+                "intervento_transcatetere_pregresso": {"type": "boolean"},
+                "intervento_pregresso_descrizione": {"type": "string"},
+                "Anno_REDO": {"type": "string","format": "date"},
+                "altri_diuretici": {"type": "boolean"},
+                "statine": {"type": "boolean"},
+                "insulina": {"type": "boolean"},
+                "metformina": {"type": "boolean"},
+                "anti_SGLT2": {"type": "boolean"},
+                "ARNI": {"type": "boolean"}
             },
             "required": ["n_cartella", "nome", "cognome", "data_intervento"]
         },
@@ -400,7 +528,8 @@ class PromptManager:
         "required": ["n_cartella", "nome", "cognome"],
         "additionalProperties": True
     },
-        "epicrisi_ti": {
+
+    "epicrisi_ti": {
         "name": "epicrisi_ti",
         "title": "Epicrisi Terapia Intensiva",
         "type": "object",
@@ -419,36 +548,39 @@ class PromptManager:
         "required": ["n_cartella", "nome", "cognome"],
         "additionalProperties": True
     },
-        "cartellino_anestesiologico": {
+
+
+    "cartellino_anestesiologico": {
         "name": "cartellino_anestesiologico",
         "title": "Scheda Anestesiologica Intraoperatoria",
         "type": "object",
         "properties": {
+
             "n_cartella": { "type": "number" },
             "nome": { "type": "string" },
             "cognome": { "type": "string" },
             "data_di_nascita": { "type": "string", "format": "date" },
             "data_intervento": { "type": "string", "format": "date" },
 
-            "entratainsala": { "type": "string", "format": "time" },
-            "iniziointervento": { "type": "string", "format": "time" },
-            "iniziocec": { "type": "string", "format": "time" },
-            "inizioclamp": { "type": "string", "format": "time" },
-            "inizioacc": { "type": "string", "format": "time" },
-            "fineacc": { "type": "string", "format": "time" },
-            "fineclamp": { "type": "string", "format": "time" },
-            "finecec": { "type": "string", "format": "time" },
-            "fineintervento": { "type": "string", "format": "time" },
-            "uscitasala": { "type": "string", "format": "time" },
+            "INGRESSO_IN_SALA": { "type": "string", "format": "time" },
+            "INIZIO_TEMPO_CHIRURGICO": { "type": "string", "format": "time" },
+            "TEMPI_CCH_Inizio_CEC": { "type": "string", "format": "time" },
+            "TEMPI_CCH_Clamp_Ao": { "type": "string", "format": "time" },
+            "TEMPI_CCH_Declamp_Ao": { "type": "string", "format": "time" },
+            "TEMPI_CCH_fine_CEC": { "type": "string", "format": "time" },
+            "FINE_TEMPO_CHIRURGICO": { "type": "string", "format": "time" },
+            "USCITA_DI_SALA": { "type": "string", "format": "time" },
 
             "cec": { "type": "boolean" },
-            "cardioplegia": { "type": "string" },
-            "approcciochirurgico": { "type": "string" },
 
-            "anestesia": { "type": "string" },            # es. generale, locoregionale (se riportato)
-            "farmaci_intraop": { "type": "string" },      # elenco/riassunto farmaci
-            "eventi_intraop": { "type": "string" },       # eventi/complicanze intraoperatorie
-            "parametri": { "type": "string" }             # tabellari: "chiave: valore; ..."
+            "Cardioplegia": { "type": "string" },
+            "Tipo_plegia": { "type": "string" },
+
+            "anestesia": { "type": "string" },
+            "farmaci_intraop": { "type": "string" },
+            "eventi_intraop": { "type": "string" },
+            "parametri": { "type": "string" }
+
         },
         "required": ["n_cartella", "nome", "cognome", "data_intervento"],
         "additionalProperties": True
@@ -540,6 +672,83 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre le se
 | data_morte                                 | Date              | Data del decesso, se avvenuto.                                                                                                                  |
 | esami_laboratorio_dimissione              | Text              | Risultati di laboratorio e strumentali prima della dimissione (usa solo esami con data successiva all’intervento e prossima alla dimissione).  |
 | Terapia_dimissione                        | Text              | Terapia farmacologica prescritta alla dimissione (usa solo la terapia associata temporalmente alla dimissione, non quella pre-operatoria).     |
+| edemi_declivi                         | Boolean | Presenza di edemi declivi (arti inferiori). Imposta `true` se nel testo compaiono termini come *edemi declivi*, *edemi periferici*, *edema malleolare*, *edemi agli arti inferiori*. In assenza di menzione o se negati, imposta `false`. |
+| ascite                                | Boolean | Presenza di ascite clinicamente rilevante. Imposta `true` se nel testo sono riportati *ascite*, *versamento ascitico*, *liquido in addome*. Imposta `false` se assente o negata.                                                          |
+| intervento_cardiochirurgico_pregresso | Boolean | Presenza di **precedente intervento cardiochirurgico** prima dell’intervento attuale. Imposta `true` se riportato in anamnesi o lettera di dimissione (es. *pregresso bypass*, *pregressa sostituzione valvolare*).                       |
+| intervento_transcatetere_pregresso    | Boolean | Presenza di **precedente intervento transcatetere** (es. TAVI, MitraClip, PCI strutturale) prima dell’intervento attuale. Imposta `true` se riportato esplicitamente nel testo.                                                           |
+| intervento_pregresso_descrizione      | Text    | Descrizione libera dell’intervento pregresso (cardiochirurgico e/o transcatetere). Deve riferirsi **solo a procedure precedenti all’intervento attuale**. Può essere estratta sia da anamnesi che da lettera di dimissione.               |
+| altri_diuretici                       | Boolean | Uso di diuretici **diversi dalla furosemide** (es. tiazidici, spironolattone, canrenoato). Imposta `true` se presenti in terapia pre-operatoria.                                                                                          |
+| statine                               | Boolean | Terapia con statine (es. atorvastatina, rosuvastatina, simvastatina). Imposta `true` se presenti in terapia. **Regola derivata**: se `statine = true`, allora `dislipidemia = true`.                                                      |
+| insulina                              | Boolean | Terapia insulinica in corso prima dell’intervento. **Regola derivata**: se `insulina = true`, allora `diabete = true`, anche in assenza di menzione testuale di diabete.                                                                  |
+| metformina                            | Boolean | Terapia con metformina prima dell’intervento. **Regola derivata**: se `metformina = true`, allora `diabete = true`.                                                                                                                       |
+| anti_SGLT2                            | Boolean | Terapia con inibitori SGLT2 (gliflozine: dapagliflozin, empagliflozin, ecc.). **Regola derivata**: se `anti_SGLT2 = true`, allora `diabete = true`.                                                                                       |
+| ARNI                                  | Boolean | Terapia con ARNI (sacubitril/valsartan – Entresto). Imposta `true` se presente in terapia pre-operatoria.                                                                                                                                 |
+| Anno_REDO                             | Date    | Anno/data di un **intervento cardiochirurgico o transcatetere pregresso** (REDO). Deve riferirsi **a interventi precedenti a quello attuale**, non all’intervento in corso.                                                               |
+                        | Text              | Terapia farmacologica prescritta alla dimissione (usa solo la terapia associata temporalmente alla dimissione, non quella pre-operatoria).     |
+|   pre_esami_laboratorio                    | Text              | Testo degli esami di laboratorio pre-intervento.
+| post_esami_laboratorio                    | Text              | Testo degli esami di laboratorio post-intervento.
+| pre_EMOCROMO_Globuli_rossi                 | Number | Globuli rossi pre-intervento.         |
+| post_EMOCROMO_Globuli_rossi                | Number | Globuli rossi post-intervento.        |
+| pre_EMOCROMO_Globuli_bianchi               | Number | Globuli bianchi pre-intervento.       |
+| post_EMOCROMO_Globuli_bianchi              | Number | Globuli bianchi post-intervento.      |
+| pre_EMOCROMO_Ematocrito                    | Number | Ematocrito pre-intervento.            |
+| post_EMOCROMO_Ematocrito                   | Number | Ematocrito post-intervento.           |
+| pre_EMOCROMO_Emoglobina                    | Number | Emoglobina pre-intervento.            |
+| post_EMOCROMO_Emoglobina                   | Number | Emoglobina post-intervento.           |
+| pre_PIASTRINE_Piastrine                    | Number | Piastrine pre-intervento.             |
+| post_PIASTRINE_Piastrine                   | Number | Piastrine post-intervento.            |
+| pre_S_GLUCOSIO                             | Number | Glicemia pre-intervento.              |
+| post_S_GLUCOSIO                            | Number | Glicemia post-intervento.             |
+| pre_S_UREA                                 | Number | Urea pre-intervento.                  |
+| post_S_UREA                                | Number | Urea post-intervento.                 |
+| pre_S_CREATININA                           | Number | Creatinina pre-intervento.            |
+| post_S_CREATININA                          | Number | Creatinina post-intervento.           |
+| pre_eGFR_ml_min                            | Number | eGFR pre-intervento.                  |
+| post_eGFR_ml_min                           | Number | eGFR post-intervento.                 |
+| pre_S_SODIO                                | Number | Sodio pre-intervento.                 |
+| post_S_SODIO                               | Number | Sodio post-intervento.                |
+| pre_S_POTASSIO                             | Number | Potassio pre-intervento.              |
+| post_S_POTASSIO                            | Number | Potassio post-intervento.             |
+| pre_S_CALCIO                               | Number | Calcio pre-intervento.                |
+| post_S_CALCIO                              | Number | Calcio post-intervento.               |
+| pre_S_BILIRUBINA_TOTALE                    | Number | Bilirubina totale pre-intervento.     |
+| post_S_BILIRUBINA_TOTALE                   | Number | Bilirubina totale post-intervento.    |
+| pre_S_BILIRUBINA_DIRETTA                   | Number | Bilirubina diretta pre-intervento.    |
+| post_S_BILIRUBINA_DIRETTA                  | Number | Bilirubina diretta post-intervento.   |
+| pre_S_BILIRUBINA_INDIRETTA                 | Number | Bilirubina indiretta pre-intervento.  |
+| post_S_BILIRUBINA_INDIRETTA                | Number | Bilirubina indiretta post-intervento. |
+| pre_S_ASPARTATO_AMINOTRANSFERASI           | Number | AST pre-intervento.                   |
+| post_S_ASPARTATO_AMINOTRANSFERASI          | Number | AST post-intervento.                  |
+| pre_S_GAMMAGLUTAMILTRANSFERASI             | Number | GGT pre-intervento.                   |
+| post_S_GAMMAGLUTAMILTRANSFERASI            | Number | GGT post-intervento.                  |
+| pre_S_FOSFATASI_ALCALINA                   | Number | Fosfatasi alcalina pre-intervento.    |
+| post_S_FOSFATASI_ALCALINA                  | Number | Fosfatasi alcalina post-intervento.   |
+| pre_S_LATTICODEIDROGENASI                  | Number | LDH pre-intervento.                   |
+| post_S_LATTICODEIDROGENASI                 | Number | LDH post-intervento.                  |
+| pre_S_FERRO                                | Number | Ferro pre-intervento.                 |
+| post_S_FERRO                               | Number | Ferro post-intervento.                |
+| pre_S_TRANSFERRINA                         | Number | Transferrina pre-intervento.          |
+| post_S_TRANSFERRINA                        | Number | Transferrina post-intervento.         |
+| pre_S_ALBUMINA                             | Number | Albumina pre-intervento.              |
+| post_S_ALBUMINA                            | Number | Albumina post-intervento.             |
+| pre_S_PROTEINA_C_REATTIVA                  | Number | PCR pre-intervento.                   |
+| post_S_PROTEINA_C_REATTIVA                 | Number | PCR post-intervento.                  |
+| pre_S_TRIGLICERIDI                         | Number | Trigliceridi pre-intervento.          |
+| post_S_TRIGLICERIDI                        | Number | Trigliceridi post-intervento.         |
+| pre_S_COLESTEROLO                          | Number | Colesterolo pre-intervento.           |
+| post_S_COLESTEROLO                         | Number | Colesterolo post-intervento.          |
+| pre_S_TROPONINA_T                          | Number | Troponina T pre-intervento.           |
+| post_S_TROPONINA_T                         | Number | Troponina T post-intervento.          |
+| pre_S_CREATINFOSFOCHINASI                  | Number | CPK pre-intervento.                   |
+| post_S_CREATINFOSFOCHINASI                 | Number | CPK post-intervento.                  |
+| pre_PT_INR_International_Normalized_Ratio  | Number | INR pre-intervento.                   |
+| post_PT_INR_International_Normalized_Ratio | Number | INR post-intervento.                  |
+| pre_PT_Rapporto                            | Number | Rapporto PT pre-intervento.           |
+| post_PT_Rapporto                           | Number | Rapporto PT post-intervento.          |
+| pre_APTT_Secondi                           | Number | aPTT pre-intervento (secondi).        |
+| post_APTT_Secondi                          | Number | aPTT post-intervento (secondi).       |
+| pre_S_PROPEPTIDE_NATRIURETICO_NT_proBNP    | Number | NT-proBNP pre-intervento.             |
+| post_S_PROPEPTIDE_NATRIURETICO_NT_proBNP   | Number | NT-proBNP post-intervento.            |
 
 ---
 
@@ -554,6 +763,8 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre le se
 - Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con **due chiavi**:
     - `"entità"`: il nome dell'entità
     - `"valore"`: il valore estratto dell'entità
+-Se la data accanto al valore è < data_intervento → campo pre_
+-Se la data accanto al valore è ≥ data_intervento → campo post_
 **NON** aggiungere commenti, spiegazioni, note, intestazioni o altro: **solo** la lista JSON.
 -Se trovi **tabelle**, **elenchi** o **parametri** , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura).
 -Se trovi **esami** o **strumentali** (ad esempio esami di laboratorio) , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura). 
@@ -1012,37 +1223,116 @@ IRC (crea all'ingresso 2,64 mg/dl).
         "intervento": '''
 Sei un cardiochirurgo. Estrai le seguenti entità dal referto di intervento/verbale operatorio.
 
-Campi anagrafici/cronologia:
-- n_cartella (Number), nome (Text), cognome (Text), data_di_nascita (Date)  [mappa anche “DOB”, “dob”]
-- data_intervento (Date), Percorso (Text: es. "Chirurgico", "Transcatetere")
+| Entità                                | Tipo    | Descrizione                                                                                                                                       |
+| ------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| n_cartella                            | Number  | Numero identificativo univoco della cartella clinica del paziente.                                                                                |
+| nome                                  | Text    | Nome del paziente.                                                                                                                                |
+| cognome                               | Text    | Cognome del paziente.                                                                                                                             |
+| data_di_nascita                       | Date    | Data di nascita del paziente.                                                                                                                     |
+| data_intervento                       | Date    | Data in cui è stato eseguito l’intervento cardiochirurgico.                                                                                       |
+| Percorso                              | Text    | Tipologia di percorso dell’intervento: **Chirurgico** o **Transcatetere**.                                                                        |
+| redo                                  | Boolean | Indica se l’intervento è un REDO. Imposta `true` se è presente un precedente intervento cardiochirurgico o transcatetere sul cuore.               |
+| cec                                   | Boolean | Utilizzo della circolazione extracorporea (CEC) durante l’intervento.                                                                             |
+| cannulazionearteriosa                 | Text    | Tipo di cannulazione arteriosa utilizzata (es. aortica, femorale).                                                                                |
+| statopaz                              | Text    | Stato clinico del paziente al momento dell’intervento (es. stabile, critico).                                                                     |
+| cardioplegia                          | Text    | Tipo di cardioplegia utilizzata per la protezione miocardica.                                                                                     |
+| approcciochirurgico                   | Text    | Approccio chirurgico utilizzato (es. sternotomia mediana, mini-invasivo).                                                                         |
+| entratainsala                         | Time    | Orario di ingresso del paziente in sala operatoria.                                                                                               |
+| iniziointervento                      | Time    | Orario di inizio dell’intervento chirurgico.                                                                                                      |
+| iniziocec                             | Time    | Orario di inizio della circolazione extracorporea.                                                                                                |
+| inizioclamp                           | Time    | Orario di applicazione del clamp aortico.                                                                                                         |
+| inizioacc                             | Time    | Orario di inizio arresto cardiaco controllato.                                                                                                    |
+| fineacc                               | Time    | Orario di fine arresto cardiaco controllato.                                                                                                      |
+| fineclamp                             | Time    | Orario di rimozione del clamp aortico.                                                                                                            |
+| finecec                               | Time    | Orario di fine circolazione extracorporea.                                                                                                        |
+| fineintervento                        | Time    | Orario di fine dell’intervento chirurgico.                                                                                                        |
+| uscitasala                            | Time    | Orario di uscita del paziente dalla sala operatoria.                                                                                              |
+| primo operatore cognome               | Text    | Cognome del primo operatore chirurgico responsabile dell’intervento.                                                                              |
+| primo operatore nome                  | Text    | Nome del primo operatore chirurgico responsabile dell’intervento.                                                                                 |
+| num_interventi                        | Number  | Numero totale di interventi/procedure eseguite nello stesso atto operatorio.                                                                      |
+| intervento 1                          | Text    | Descrizione del primo intervento eseguito (aderente alla codifica del CSV).                                                                       |
+| protesi 1                             | Text    | Tipo di protesi utilizzata nel primo intervento (Biologica / Meccanica / Anello).                                                                 |
+| modello 1                             | Text    | Modello della protesi impiantata.                                                                                                                 |
+| numero 1                              | Number  | Numero o misura della protesi impiantata.                                                                                                         |
+| eziologia_valvolare 1                 | Text    | Eziologia della patologia valvolare (es. degenerativa, reumatica, infettiva).                                                                     |
+| intervento text                       | Text    | Testo libero riassuntivo del verbale operatorio.                                                                                                  |
+| edemi_declivi                         | Boolean | Presenza di edemi declivi pre-operatori. Imposta `true` se nel testo sono riportati *edemi declivi*, *edemi periferici*, *edema malleolare*.      |
+| ascite                                | Boolean | Presenza di ascite pre-operatoria. Imposta `true` se nel testo compaiono *ascite* o *versamento ascitico*.                                        |
+| intervento_cardiochirurgico_pregresso | Boolean | Presenza di precedente intervento cardiochirurgico prima dell’intervento attuale. Imposta `true` se riportato in anamnesi o nel testo operatorio. |
+| intervento_transcatetere_pregresso    | Boolean | Presenza di precedente intervento transcatetere (es. TAVI, MitraClip) prima dell’intervento attuale.                                              |
+| intervento_pregresso_descrizione      | Text    | Descrizione libera dell’intervento cardiochirurgico o transcatetere pregresso. Deve riferirsi **solo a interventi precedenti** a quello attuale.  |
+| Anno_REDO                             | Date    | Anno/data dell’intervento cardiochirurgico o transcatetere pregresso (REDO), non riferito all’intervento attuale.                                 |
+| altri_diuretici                       | Boolean | Uso di diuretici diversi dalla furosemide (es. tiazidici, antialdosteronici) nella terapia pre-operatoria.                                        |
+| statine                               | Boolean | Terapia con statine. **Regola derivata**: se `statine = true` → `dislipidemia = true`.                                                            |
+| insulina                              | Boolean | Terapia insulinica pre-operatoria. **Regola derivata**: se `insulina = true` → `diabete = true`.                                                  |
+| metformina                            | Boolean | Terapia con metformina pre-operatoria. **Regola derivata**: se `metformina = true` → `diabete = true`.                                            |
+| anti_SGLT2                            | Boolean | Terapia con inibitori SGLT2 (gliflozine). **Regola derivata**: se `anti_SGLT2 = true` → `diabete = true`.                                         |
+| ARNI                                  | Boolean | Terapia con ARNI (sacubitril/valsartan – Entresto) in fase pre-operatoria.                                                                        |
 
-Setting operatorio:
-- redo (Boolean), cec (Boolean), cannulazionearteriosa (Text), statopaz (Text),
-  cardioplegia (Text), approcciochirurgico (Text)
 
-Tempi sala (Time):
-- entratainsala, iniziointervento, iniziocec, inizioclamp, inizioacc,
-  fineacc, fineclamp, finecec, fineintervento, uscitasala
+### **Istruzioni IMPORTANTI:**
 
-Equipe:
-- "primo operatore cognome" (Text), "primo operatore nome" (Text)
+- Ragiona considerando **frase per frase** e sfrutta sempre le **date** (ingresso, intervento, dimissione, date degli esami) per distinguere ciò che è **pre-operatorio** da ciò che è **post-operatorio/dimissione**.
+- Non estrarre **nessuna entità** diversa da quelle elencate.
+- Se un'entità non è presente nella lettera, **non inventarla** e **non includerla** nel risultato.
+- I nomi delle entità possono essere acronimi o forme abbreviate: mappa sempre correttamente il significato clinico al nome di entità definito nella tabella.
+- Cerca tutte le entità indicate.
+- Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con **due chiavi**:
+    - `"entità"`: il nome dell'entità
+    - `"valore"`: il valore estratto dell'entità
+-Se la data accanto al valore è < data_intervento → campo pre_
+-Se la data accanto al valore è ≥ data_intervento → campo post_
+**NON** aggiungere commenti, spiegazioni, note, intestazioni o altro: **solo** la lista JSON.
+-Se trovi **tabelle**, **elenchi** o **parametri** , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura).
+-Se trovi **esami** o **strumentali** (ad esempio esami di laboratorio) , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura). 
 
-Struttura interventi:
-- num_interventi (Number)
-- "intervento 1" (Text), "protesi 1" (Text), "modello 1" (Text), "numero 1" (Number), "eziologia_valvolare 1" (Text)
+---
 
-Testo libero:
-- "intervento text" (Text)  [riassunto completo, se presente]
+###Esempio di input(esempio parziale della lettera di dimission)
+Si dimette in data 02/09/2019
+il Sig. BERTOLOTTI FRANCO
+Nato il 27/03/1939 telefono 3479927663
+ricoverato presso questo ospedale dal 27/08/2019
+Numero Cartella 2019034139
 
-REGOLE:
-- Output = LISTA JSON di oggetti { "entità": <nome>, "valore": <valore> } — niente altro.
-- Non inventare. Se un campo non è presente, omettilo.
-- Accetta sinonimi comuni (DOB→data_di_nascita; “centrale/periferica” per cannulazionearteriosa).
-- Se sono presenti più interventi ma non strutturati, popola almeno i campi “intervento 1 / protesi 1 / …”.
-- Per `Percorso` e per l’eventuale campo `Accesso` (se nel testo è chiaramente specificato l’accesso), usa descrizioni standardizzate quando possibile:
-  - Percorso: es. "Chirurgico", "Transcatetere".
-  - Accesso: es. "transfemorale", "minitoracotomia", "ministernotomia".
-''',
+Diagnosi alla dimissione:
+Intervento di plastica valvolare mitralica per via percutanea mediante posizionamento di duplice dispositivo Mitraclip.
+
+Motivo del Ricovero:
+Insufficienza mitralica in status post rivascolarizzazione miocardica chirurgica mediante triplice bypass coronarico.
+
+Cenni Anamnestici:
+Paziente nega farmacoallergie.
+Familiarità positiva per cardiopatia ischemica (padre).
+Ex fumatore, stop nel 1990 (1 pack/die).
+Diabete mellito in tp ipoglicemizzante orale.
+IRC (crea all'ingresso 2,64 mg/dl).
+
+
+---
+Questo esempio serve per capire solamente il formato di output
+###Esmpio output(esempio parziale in JSON):
+
+```json
+[
+  { "entità": "data_dimissione_cch", "valore": "02/09/2019" },
+  { "entità": "nome", "valore": "FRANCO" },
+  { "entità": "cognome", "valore": "BERTOLOTTI" },
+  { "entità": "data_di_nascita", "valore": "27/03/1939" },
+  { "entità": "numero di telefono", "valore": "3479927663" },
+  { "entità": "data_ingresso_cch", "valore": "27/08/2019" },
+  { "entità": "n_cartella", "valore": "2019034139" },
+  { "entità": "Diagnosi text", "valore": "Intervento di plastica valvolare mitralica per via percutanea mediante posizionamento di duplice dispositivo Mitraclip." },
+  { "entità": "Motivo ricovero", "valore": "Insufficienza mitralica in status post rivascolarizzazione miocardica chirurgica mediante triplice bypass coronarico." },
+  { "entità": "fumo", "valore": true },
+  { "entità": "diabete", "valore": true },
+  { "entità": "insufficienza renale cronica", "valore": true },
+  { "entità": "familiarita cardiovascolare", "valore": true },
+  { "entità": "emocromo", "valore": "4.5" },
+  { "entità": "creatinina", "valore": "1.2" }
+]''',
+
+
     "anamnesi": '''
     Sei un medico. Estrai ESCLUSIVAMENTE le seguenti entità dall'ANAMNESI (periodo **preoperatorio**):
     
@@ -1076,31 +1366,85 @@ REGOLE:
     - NON inventare: ometti i campi assenti.
     - Se trovi misure/tabellari, normalizzale senza unità in **parametri**.
 ''',
+
     "cartellino_anestesiologico": '''
     Sei un anestesista. Estrai ESCLUSIVAMENTE le seguenti entità dalla scheda anestesiologica intraoperatoria:
+    | Entità                  | Tipo | Descrizione                                                                                               |
+| ----------------------- | ---- | --------------------------------------------------------------------------------------------------------- |
+| ingresso_in_sala        | Time | Ora di ingresso del paziente in sala operatoria. Cerca nel testo dell’intervento o in “INGRESSO IN SALA”. |
+| inizio_tempo_chirurgico | Time | Ora di inizio del tempo chirurgico. Corrisponde a “INIZIO TEMPO CHIRURGICO” o simile nel documento.       |
+| tempi_cch_inizio_cec    | Time | Ora di inizio della circolazione extracorporea (CEC). Cerca come “TEMPI CCH: Inizio CEC”.                 |
+| tempi_cch_clamp_ao      | Time | Ora del clampaggio aortico (clamp Ao). Cerca “TEMPI CCH: Clamp Ao”.                                       |
+| tempi_cch_declamp_ao    | Time | Ora del declampaggio aortico (declamp Ao). Cerca “TEMPI CCH: Declamp Ao”.                                 |
+| tempi_cch_fine_cec      | Time | Ora di fine della circolazione extracorporea. Cerca “TEMPI CCH: fine CEC”.                                |
+| fine_tempo_chirurgico   | Time | Ora di fine del tempo chirurgico. Corrisponde a “FINE TEMPO CHIRURGICO” o simile.                         |
+| uscita_di_sala          | Time | Ora di uscita del paziente dalla sala operatoria. Cerca “USCITA DI SALA”.                                 |
+| cardioplegia            | Text | Tipo di soluzione cardioplegica usata. Cerca questa informazione nel testo dell’intervento.               |
+| tipo_plegia             | Text | Dettaglio sul tipo di cardioplegia (es. ematica, cristalloide). Cerca nel testo dell’intervento.          |
 
-    Anagrafica/cronologia:
-    - n_cartella (Number), nome (Text), cognome (Text), data_di_nascita (Date)
-    - data_intervento (Date)
 
-    Tempi sala (Time):
-    - entratainsala, iniziointervento, iniziocec, inizioclamp, inizioacc,
-    fineacc, fineclamp, finecec, fineintervento, uscitasala
+    ### **Istruzioni IMPORTANTI:**
 
-    Tecnica/setting:
-    - cec (Boolean), cardioplegia (Text), approcciochirurgico (Text)
+- Ragiona considerando **frase per frase** e sfrutta sempre le **date** (ingresso, intervento, dimissione, date degli esami) per distinguere ciò che è **pre-operatorio** da ciò che è **post-operatorio/dimissione**.
+- Non estrarre **nessuna entità** diversa da quelle elencate.
+- Se un'entità non è presente nella lettera, **non inventarla** e **non includerla** nel risultato.
+- I nomi delle entità possono essere acronimi o forme abbreviate: mappa sempre correttamente il significato clinico al nome di entità definito nella tabella.
+- Cerca tutte le entità indicate.
+- Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con **due chiavi**:
+    - `"entità"`: il nome dell'entità
+    - `"valore"`: il valore estratto dell'entità
+-Se la data accanto al valore è < data_intervento → campo pre_
+-Se la data accanto al valore è ≥ data_intervento → campo post_
+**NON** aggiungere commenti, spiegazioni, note, intestazioni o altro: **solo** la lista JSON.
+-Se trovi **tabelle**, **elenchi** o **parametri** , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura).
+-Se trovi **esami** o **strumentali** (ad esempio esami di laboratorio) , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura). 
 
-    Dettagli anestesia:
-    - anestesia (Text), farmaci_intraop (Text), eventi_intraop (Text)
+---
 
-    Tabelle/parametri:
-    - parametri (Text) — se presenti tabelle/elenco, riportali come "chiave: valore" separati da "; " (senza unità).
+###Esempio di input(esempio parziale della lettera di dimission)
+Si dimette in data 02/09/2019
+il Sig. BERTOLOTTI FRANCO
+Nato il 27/03/1939 telefono 3479927663
+ricoverato presso questo ospedale dal 27/08/2019
+Numero Cartella 2019034139
 
-    REGOLE:
-    - Output = LISTA JSON di oggetti { "entità": "<nome>", "valore": "<valore>" } — niente altro.
-    - NON inventare: ometti i campi non presenti.
-    - Accetta sinonimi per i tempi (es. “incisione”≈iniziointervento) mappandoli al campo corretto.
-'''
+Diagnosi alla dimissione:
+Intervento di plastica valvolare mitralica per via percutanea mediante posizionamento di duplice dispositivo Mitraclip.
+
+Motivo del Ricovero:
+Insufficienza mitralica in status post rivascolarizzazione miocardica chirurgica mediante triplice bypass coronarico.
+
+Cenni Anamnestici:
+Paziente nega farmacoallergie.
+Familiarità positiva per cardiopatia ischemica (padre).
+Ex fumatore, stop nel 1990 (1 pack/die).
+Diabete mellito in tp ipoglicemizzante orale.
+IRC (crea all'ingresso 2,64 mg/dl).
+
+
+---
+Questo esempio serve per capire solamente il formato di output
+###Esmpio output(esempio parziale in JSON):
+
+```json
+[
+  { "entità": "data_dimissione_cch", "valore": "02/09/2019" },
+  { "entità": "nome", "valore": "FRANCO" },
+  { "entità": "cognome", "valore": "BERTOLOTTI" },
+  { "entità": "data_di_nascita", "valore": "27/03/1939" },
+  { "entità": "numero di telefono", "valore": "3479927663" },
+  { "entità": "data_ingresso_cch", "valore": "27/08/2019" },
+  { "entità": "n_cartella", "valore": "2019034139" },
+  { "entità": "Diagnosi text", "valore": "Intervento di plastica valvolare mitralica per via percutanea mediante posizionamento di duplice dispositivo Mitraclip." },
+  { "entità": "Motivo ricovero", "valore": "Insufficienza mitralica in status post rivascolarizzazione miocardica chirurgica mediante triplice bypass coronarico." },
+  { "entità": "fumo", "valore": true },
+  { "entità": "diabete", "valore": true },
+  { "entità": "insufficienza renale cronica", "valore": true },
+  { "entità": "familiarita cardiovascolare", "valore": true },
+  { "entità": "emocromo", "valore": "4.5" },
+  { "entità": "creatinina", "valore": "1.2" }
+]'''
+
     }
 
     def get_schema_for(self, document_type: str) -> dict:
