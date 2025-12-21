@@ -749,7 +749,6 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre le se
 | anti_SGLT2                            | Boolean | Terapia con inibitori SGLT2 (gliflozine: dapagliflozin, empagliflozin, ecc.). **Regola derivata**: se `anti_SGLT2 = true`, allora `diabete = true`.                                                                                       |
 | ARNI                                  | Boolean | Terapia con ARNI (sacubitril/valsartan – Entresto). Imposta `true` se presente in terapia pre-operatoria.                                                                                                                                 |
 | Anno_REDO                             | Date    | Anno/data di un **intervento cardiochirurgico o transcatetere pregresso** (REDO). Deve riferirsi **a interventi precedenti a quello attuale**, non all’intervento in corso.                                                               |
-                        | Text              | Terapia farmacologica prescritta alla dimissione (usa solo la terapia associata temporalmente alla dimissione, non quella pre-operatoria).     |
 |   pre_esami_laboratorio                    | Text              | Testo degli esami di laboratorio pre-intervento.
 | post_esami_laboratorio                    | Text              | Testo degli esami di laboratorio post-intervento.
 | pre_EMOCROMO_Globuli_rossi                 | Number | Globuli rossi pre-intervento.         |
@@ -820,8 +819,7 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre le se
 ### **Istruzioni IMPORTANTI:**
 
 - Ragiona considerando **frase per frase** e sfrutta sempre le **date** (ingresso, intervento, dimissione, date degli esami) per distinguere ciò che è **pre-operatorio** da ciò che è **post-operatorio/dimissione**.
-- Non estrarre **nessuna entità** diversa da quelle elencate.
-- Se un'entità non è presente nella lettera, **non inventarla** e **non includerla** nel risultato.
+- Se un'entità non è presente nel documento, **non inventarla** e **non includerla** nel risultato.
 - Usa le regole derivate da esami e terapia come indicato sopra (per `diabete`, `dislipidemia`, `insufficienza_renale_cronica`, `ipertensione`, `LCOS`, ecc.), ma **non** impostare mai un valore se mancano completamente dati coerenti nel testo o nei parametri.
 - I nomi delle entità possono essere acronimi o forme abbreviate: mappa sempre correttamente il significato clinico al nome di entità definito nella tabella.
 - Cerca tutte le entità indicate.
@@ -833,6 +831,7 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre le se
 **NON** aggiungere commenti, spiegazioni, note, intestazioni o altro: **solo** la lista JSON.
 -Se trovi **tabelle**, **elenchi** o **parametri** , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura).
 -Se trovi **esami** o **strumentali** (ad esempio esami di laboratorio) , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura). 
+-Anche se le entità sono inserite tutte insieme all'interno di alcune entità che le raggruppano, mappale anche singolarmente alle rispettive entità.
 
 ---
 
@@ -909,8 +908,7 @@ Sei un medico specializzato in cardiologia interventistica. Il tuo compito è es
 ---
 
 - Ragiona considerando **frase per frase** e sfrutta sempre le **date** (ingresso, intervento, dimissione, date degli esami) per distinguere ciò che è **pre-operatorio** da ciò che è **post-operatorio/dimissione**.
-- Non estrarre **nessuna entità** diversa da quelle elencate.
-- Se un'entità non è presente nella lettera, **non inventarla** e **non includerla** nel risultato.
+- Se un'entità non è presente nel documento, **non inventarla** e **non includerla** nel risultato.
 - I nomi delle entità possono essere acronimi o forme abbreviate: mappa sempre correttamente il significato clinico al nome di entità definito nella tabella.
 - Cerca tutte le entità indicate.
 - Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con **due chiavi**:
@@ -921,7 +919,7 @@ Sei un medico specializzato in cardiologia interventistica. Il tuo compito è es
 -Se trovi **esami** o **strumentali** (ad esempio esami di laboratorio) , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura). 
 
 ---
- Questo è un esempio di input per capire il formato di output:
+ Questo è un esempio di input-output per capire il formato di output:
 ###Esempio di input(esempio parziale della lettera di dimission)
 Si dimette in data 02/09/2019
 il Sig. BERTOLOTTI FRANCO
@@ -1069,8 +1067,8 @@ Estrai le seguenti entità dall’ecocardiogramma **preoperatorio**:
   - Esempi: `Ventricolo_sinistro_GLS: -18`, `Ventricolo_sinistro_FE: 45`, `Valvola_aortica_gradiente_max_aortica: 40`, `Valvola_mitralica_TAPSE: 17`.
 - Se trovi tabelle/elenco parametri (es. "FE: 45 %", "TAPSE: 17 mm"), estrai ciascuna coppia nel campo **parametri** come testo strutturato `"Sezione_nome_variabile: valore"` separati da **punto e virgola**.
 - Ragiona considerando **frase per frase** e sfrutta sempre le **date** (ingresso, intervento, dimissione, date degli esami) per distinguere ciò che è **pre-operatorio** da ciò che è **post-operatorio/dimissione**.
-- Non estrarre **nessuna entità** diversa da quelle elencate.
-- Se un'entità non è presente nella lettera, **non inventarla** e **non includerla** nel risultato.
+-Controlla bene all'interno del testo perchè le informazioni ci sono.
+- Se un'entità non è presente nel documento, **non inventarla** e **non includerla** nel risultato.
 - I nomi delle entità possono essere acronimi o forme abbreviate: mappa sempre correttamente il significato clinico al nome di entità definito nella tabella.
 - Cerca tutte le entità indicate.
 - Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con **due chiavi**:
@@ -1079,8 +1077,9 @@ Estrai le seguenti entità dall’ecocardiogramma **preoperatorio**:
 **NON** aggiungere commenti, spiegazioni, note, intestazioni o altro: **solo** la lista JSON.
 -Se trovi **tabelle**, **elenchi** o **parametri** , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura).
 -Se trovi **esami** o **strumentali** (ad esempio esami di laboratorio) , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura). - Output = **solo** una lista JSON di oggetti `{"entità": <nome>, "valore": <valore>}`. Nessun altro testo.
+-Anche se le entità sono inserite tutte insieme all'interno dei parametri, mappale anche singolarmente alle rispettive entità.
 
-questi esempi servono per capire il fromato di output
+Questi esempi servono per capire il fromato di input/output
 ###Esempio di input(esempio parziale della lettera di dimissione)
 Si dimette in data 02/09/2019
 il Sig. BERTOLOTTI FRANCO
@@ -1128,6 +1127,30 @@ IRC (crea all'ingresso 2,64 mg/dl).
         "eco_postoperatorio": '''
 Sei un medico specializzato in cardiochirurgia.
 Estrai le seguenti entità dall’ecocardiogramma **postoperatorio**
+
+| Entità                               | Tipo    | Descrizione                                            |
+| ------------------------------------ | ------- | ------------------------------------------------------ |
+| data_esame                           | Date    | Data di esecuzione dell’ecocardiogramma postoperatorio |
+| eco_text                             | Text    | Riassunto testuale del referto ecocardiografico        |
+| parametri                            | Text    | Parametri tabellari non mappati singolarmente          |
+| VSX_FE                               | Number  | Frazione di eiezione del ventricolo sinistro           |
+| Valvola_aortica_insufficienza        | Boolean | Presenza di insufficienza valvolare aortica            |
+| Valvola_aortica_stenosi              | Boolean | Presenza di stenosi valvolare aortica                  |
+| Valvola_aortica_velocita_max         | Number  | Velocità massima transvalvolare aortica                |
+| Valvola_aortica_gradiente_max        | Number  | Gradiente massimo transaortico                         |
+| Valvola_aortica_gradiente_med        | Number  | Gradiente medio transaortico                           |
+| Valvola_aortica_PVL                  | Boolean | Presenza di leak perivalvolare aortico                 |
+| Valvola_mitrale_insufficienza        | Boolean | Presenza di insufficienza mitralica                    |
+| Valvola_mitrale_stenosi              | Boolean | Presenza di stenosi mitralica                          |
+| Valvola_mitrale_gradiente_med        | Number  | Gradiente medio trans-mitralico                        |
+| Valvola_mitrale_PVL                  | Boolean | Presenza di leak perivalvolare mitralico               |
+| Valvola_tricuspidalica_insufficienza | Boolean | Presenza di insufficienza tricuspide                   |
+| Valvola_tricuspidalica_stenosi       | Boolean | Presenza di stenosi tricuspide                         |
+| Valvola_tricuspidalica_gradiente_med | Number  | Gradiente medio trans-tricuspide                       |
+| Valvola_polmonare_insufficienza      | Boolean | Presenza di insufficienza polmonare                    |
+| Valvola_polmonare_stenosi            | Boolean | Presenza di stenosi polmonare                          |
+| Valvola_polmonare_gradiente_med      | Number  | Gradiente medio trans-polmonare                        |
+
 ### **Istruzioni IMPORTANTI:**
 
 - Considera che molti parametri ecocardiografici appartengono a **sezioni** specifiche (es. Ventricolo sinistro, Ventricolo destro, Valvola aortica, Valvola mitrale, Valvola tricuspide, Valvola polmonare).
@@ -1135,8 +1158,8 @@ Estrai le seguenti entità dall’ecocardiogramma **postoperatorio**
   - Esempi: `Ventricolo_sinistro_GLS: -18`, `Ventricolo_sinistro_FE: 45`, `Valvola_aortica_gradiente_max_aortica: 40`, `Valvola_mitralica_TAPSE: 17`.
 - Se trovi tabelle/elenco parametri (es. "FE: 45 %", "TAPSE: 17 mm"), estrai ciascuna coppia nel campo **parametri** come testo strutturato `"Sezione_nome_variabile: valore"` separati da **punto e virgola**.
 - Ragiona considerando **frase per frase** e sfrutta sempre le **date** (ingresso, intervento, dimissione, date degli esami) per distinguere ciò che è **pre-operatorio** da ciò che è **post-operatorio/dimissione**.
-- Non estrarre **nessuna entità** diversa da quelle elencate.
-- Se un'entità non è presente nella lettera, **non inventarla** e **non includerla** nel risultato.
+- Se un'entità non è presente nel documento, **non inventarla** e **non includerla** nel risultato.
+-Controlla bene all'interno del testo perchè le informazioni ci sono.
 - I nomi delle entità possono essere acronimi o forme abbreviate: mappa sempre correttamente il significato clinico al nome di entità definito nella tabella.
 - Cerca tutte le entità indicate.
 - Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con **due chiavi**:
@@ -1145,9 +1168,9 @@ Estrai le seguenti entità dall’ecocardiogramma **postoperatorio**
 **NON** aggiungere commenti, spiegazioni, note, intestazioni o altro: **solo** la lista JSON.
 -Se trovi **tabelle**, **elenchi** o **parametri** , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura).
 -Se trovi **esami** o **strumentali** (ad esempio esami di laboratorio) , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura). - Output = **solo** una lista JSON di oggetti `{"entità": <nome>, "valore": <valore>}`. Nessun altro testo.
+-Anche se le entità sono inserite tutte insieme all'interno dei parametri, mappale anche singolarmente alle rispettive entità.
 
-questi esempi servono per capire il fromato di output
-
+questi esempi input/output servono per capire il fromato di output
 ###Esempio di input(esempio parziale della lettera di dimissione)
 Si dimette in data 02/09/2019
 il Sig. BERTOLOTTI FRANCO
@@ -1231,9 +1254,9 @@ Sei un medico specializzato in cardiochirurgia. Il tuo compito è estrarre **esc
 ### **Istruzioni IMPORTANTI:**
 - Ragiona considerando **frase per frase** e sfrutta sempre le **date** (ingresso, intervento, dimissione, date degli esami) per distinguere ciò che è **pre-operatorio** da ciò che è **post-operatorio/dimissione**.
 - Non estrarre **nessuna entità** diversa da quelle elencate.
-- Se un'entità non è presente nella lettera, **non inventarla** e **non includerla** nel risultato.
+- Se un'entità non è presente nel documento, **non inventarla** e **non includerla** nel risultato.
+-Controlla bene all'interno del testo perchè le informazioni ci sono.
 - I nomi delle entità possono essere acronimi o forme abbreviate: mappa sempre correttamente il significato clinico al nome di entità definito nella tabella.
-- Cerca tutte le entità indicate.
 - Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con **due chiavi**:
     - `"entità"`: il nome dell'entità
     - `"valore"`: il valore estratto dell'entità
@@ -1336,12 +1359,11 @@ Sei un cardiochirurgo. Estrai le seguenti entità dal referto di intervento/verb
 
 
 ### **Istruzioni IMPORTANTI:**
-
 - Ragiona considerando **frase per frase** e sfrutta sempre le **date** (ingresso, intervento, dimissione, date degli esami) per distinguere ciò che è **pre-operatorio** da ciò che è **post-operatorio/dimissione**.
-- Non estrarre **nessuna entità** diversa da quelle elencate.
-- Se un'entità non è presente nella lettera, **non inventarla** e **non includerla** nel risultato.
+- Se un'entità non è presente nel documento, **non inventarla** e **non includerla** nel risultato.
 - I nomi delle entità possono essere acronimi o forme abbreviate: mappa sempre correttamente il significato clinico al nome di entità definito nella tabella.
 - Cerca tutte le entità indicate.
+-Controlla bene all'interno del testo perchè le informazioni ci sono.
 - Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con **due chiavi**:
     - `"entità"`: il nome dell'entità
     - `"valore"`: il valore estratto dell'entità
@@ -1352,7 +1374,7 @@ Sei un cardiochirurgo. Estrai le seguenti entità dal referto di intervento/verb
 -Se trovi **esami** o **strumentali** (ad esempio esami di laboratorio) , estrai **ogni** coppia chiave-valore aggiuntiva (senza unità di misura). 
 
 ---
-
+Questi esempi servono solo per capire il formato di input/output
 ###Esempio di input(esempio parziale della lettera di dimission)
 Si dimette in data 02/09/2019
 il Sig. BERTOLOTTI FRANCO
@@ -1451,8 +1473,7 @@ Questo esempio serve per capire solamente il formato di output
     ### **Istruzioni IMPORTANTI:**
 
 - Ragiona considerando **frase per frase** e sfrutta sempre le **date** (ingresso, intervento, dimissione, date degli esami) per distinguere ciò che è **pre-operatorio** da ciò che è **post-operatorio/dimissione**.
-- Non estrarre **nessuna entità** diversa da quelle elencate.
-- Se un'entità non è presente nella lettera, **non inventarla** e **non includerla** nel risultato.
+- Se un'entità non è presente nel documento, **non inventarla** e **non includerla** nel risultato.
 - I nomi delle entità possono essere acronimi o forme abbreviate: mappa sempre correttamente il significato clinico al nome di entità definito nella tabella.
 - Cerca tutte le entità indicate.
 - Il formato di output deve essere una lista JSON, dove ogni elemento è un oggetto con **due chiavi**:
@@ -1488,7 +1509,7 @@ IRC (crea all'ingresso 2,64 mg/dl).
 
 
 ---
-Questo esempio serve per capire solamente il formato di output
+Questo esempio serve per capire solamente il formato di input/output
 ###Esmpio output(esempio parziale in JSON):
 
 ```json

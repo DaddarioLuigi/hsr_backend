@@ -2,43 +2,67 @@ import json
 import re
 from typing import List, Dict, Any
 
+
 class EntityExtractor:
     """
-    Parser per la risposta JSON del LLM con fallback su regex per estrazioni esplicite.
+    Parser per la risposta JSON del LLM con fallback su regex.
+    Garantisce che tutte le entità dello schema siano sempre presenti.
     """
+
     def __init__(self, explicit_entities: List[str]):
-        # Lista delle entità esplicite definite nello schema
         self.explicit = explicit_entities
 
     def parse_llm_response(self, response_str: str, text: str) -> Dict[str, Any]:
         """
-        Prova a convertire la risposta del LLM in JSON.
-        Se riceve una lista di oggetti con chiavi 'entità' e 'valore', restituisce un dict entità->valore.
-        In caso di JSON malformato, esegue fallback di estrazione esplicita via regex.
+        Restituisce SEMPRE tutte le entità dello schema.
+        Quelle non trovate hanno valore None.
         """
+        # inizializza output completo
+        result: Dict[str, Any] = {ent: None for ent in self.explicit}
+
         try:
             data = json.loads(response_str)
-            # Se è lista di dict, converto in mappa
+
+            # Caso: lista di {entità, valore}
             if isinstance(data, list):
-                return {item['entità']: item['valore'] for item in data}
-            # Se è già dict, restituisco così com'è
+                for item in data:
+                    ent = item.get("entità")
+                    val = item.get("valore")
+                    if ent in result:
+                        result[ent] = val
+                return result
+
+            # Caso: dict diretto
             if isinstance(data, dict):
-                return data
+                for ent in self.explicit:
+                    if ent in data:
+                        result[ent] = data.get(ent)
+                return result
+
         except json.JSONDecodeError:
             pass
-        # Fallback rudimentale: estrai solo esplicite dal testo
-        return self.extract_explicit(text)
+
+        # Fallback regex
+        explicit_found = self.extract_explicit(text)
+        for ent, matches in explicit_found.items():
+            # se più match, li manteniamo come lista
+            result[ent] = matches if len(matches) > 1 else matches[0]
+
+        return result
 
     def extract_explicit(self, text: str) -> Dict[str, List[str]]:
         """
-        Estrae entità esplicite dal testo tramite ricerca keyword-based.
-        Ritorna dict entità->lista di occorrenze trovate.
+        Estrae entità esplicite dal testo tramite keyword matching.
         """
         results: Dict[str, List[str]] = {}
+
         for ent in self.explicit:
-            # regex per match case-insensitive di parola intera
-            pattern = re.compile(rf"\b{re.escape(ent)}\b", re.IGNORECASE)
+            pattern = re.compile(
+                rf"\b{re.escape(ent)}\b",
+                re.IGNORECASE
+            )
             matches = pattern.findall(text)
             if matches:
                 results[ent] = matches
+
         return results

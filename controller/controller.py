@@ -4,7 +4,7 @@ import pdfplumber
 import numpy as np
 import logging
 import time
-from llm.extractor import LLMExtractor
+from llm.extractor import LLMExtractor, logger
 from utils.excel_manager import ExcelManager
 from utils.file_manager import FileManager
 from utils.entity_extractor import EntityExtractor
@@ -176,6 +176,7 @@ class DocumentController:
             raise
 
         # 4. Parsifica risposta
+        logger.debug(f"RISPOSTA: {response_str}")
         extractor = EntityExtractor(explicit_keys)
         entities = extractor.parse_llm_response(response_str, text)
 

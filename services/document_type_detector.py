@@ -42,16 +42,25 @@ class DocumentTypeDetector:
             text_lower = text.lower()
             
             # Controlla le keyword nel testo
-            if "dimissione" in text_lower:
+            if "relazione clinica alla dimissione" in text_lower:
                 return "lettera_dimissione"
-            if "coronaro" in text_lower:
+
+            if (
+                "coronarografia" in text_lower
+                and "intervento chirurgico" not in text_lower
+                and "verbale operatorio" not in text_lower
+            ):
                 return "coronarografia"
-            if "intervento" in text_lower or "verbale" in text_lower:
+
+            if "intervento chirurgico" in text_lower or "verbale operatorio" in text_lower:
                 return "intervento"
-            if "eco" in text_lower and "pre" in text_lower:
+
+            if "ecocardiogramma" in text_lower and "pre op" in text_lower:
                 return "eco_preoperatorio"
-            if "eco" in text_lower and "post" in text_lower:
+
+            if "ecocardiogramma" in text_lower and "post op" in text_lower:
                 return "eco_postoperatorio"
+
             if "tc" in text_lower or "tac" in text_lower:
                 return "tc_cuore"
         

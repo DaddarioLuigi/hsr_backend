@@ -194,50 +194,77 @@ def get_document_detail(document_id):
 @app.route("/api/document/<document_id>", methods=["PUT"])
 def update_document_entities_route(document_id):
     log_route("update_document_entities_route")
+
     data = request.get_json()
     app.logger.debug(f"Payload PUT entities per {document_id}: {data}")
+
     entities = data.get("entities")
     if not isinstance(entities, list):
         app.logger.error("Formato entità non valido")
-        return jsonify({"success": False, "message": "Formato entità non valido"}), 400
-    
-    # Recupera le entità esistenti per confronto
+        return jsonify({
+            "success": False,
+            "message": "Formato entità non valido"
+        }), 400
+
+    # Recupera entità esistenti
     existing_detail = document_controller.get_document_detail(document_id)
     existing_entities = existing_detail.get("entities", []) if existing_detail else []
-    
-    # Crea un dizionario delle entità esistenti per confronto rapido
-    # Usa id o type come chiave per identificare l'entità
-    existing_dict = {}
-    for entity in existing_entities:
-        key = entity.get("id") or entity.get("type")
-        if key:
-            existing_dict[key] = entity.get("value")
-    
-    # Conta le entità modificate confrontando i valori
+
+    # Dizionario: id -> value (SOLO entità con id)
+    existing_dict = {
+        entity["id"]: entity.get("value")
+        for entity in existing_entities
+        if "id" in entity
+    }
+
     modified_count = 0
+
     for entity in entities:
-        key = entity.get("id") or entity.get("type")
+        entity_id = entity.get("id")
+
+        # Se non ha id → nuova entità → NON è una correzione
+        if not entity_id:
+            continue
+
+        old_value = existing_dict.get(entity_id)
         new_value = entity.get("value")
-        if key:
-            old_value = existing_dict.get(key)
-            # Se il valore è cambiato o è una nuova entità (non esisteva prima)
-            if old_value != new_value:
-                modified_count += 1
-    
+
+        # Se esisteva prima ed è cambiata → correzione
+        if old_value is not None and old_value != new_value:
+            modified_count += 1
+
+    # Salvataggio
     ok = document_controller.update_document_entities(document_id, entities)
-    
     if not ok:
         app.logger.error(f"Errore salvataggio entità documento {document_id}")
-        return jsonify({"success": False, "message": "Errore durante il salvataggio"}), 500
+        return jsonify({
+            "success": False,
+            "message": "Errore durante il salvataggio"
+        }), 500
 
+    # Incremento correzioni
     try:
-        update_obj = Response.increment_correction(document_id, increment_by=modified_count)
-        app.logger.debug(f"Risposta increment_correction: {update_obj}, entità modificate: {modified_count}")
+        if modified_count > 0:
+            update_obj = Response.increment_correction(
+                document_id,
+                increment_by=modified_count
+            )
+            app.logger.debug(
+                f"increment_correction OK: {update_obj}, "
+                f"entità corrette: {modified_count}"
+            )
     except Exception as e:
         app.logger.exception(
-            f"Errore durante l'incremento delle correzioni per {document_id}: {e}"
+            f"Errore incremento correzioni per {document_id}: {e}"
         )
-    return jsonify({"success": True, "document_id": document_id, "message": "Entità aggiornate con successo."})
+
+    return jsonify({
+        "success": True,
+        "document_id": document_id,
+        "corrected_entities": modified_count,
+        "message": "Entità aggiornate con successo"
+    })
+
 
 @app.route("/api/document/<document_id>", methods=["DELETE"])
 def delete_document(document_id):
