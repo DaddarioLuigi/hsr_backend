@@ -235,7 +235,9 @@ class PromptManager:
                 "coro_pl_stenosi50": { "type": "boolean" },
                 "coro_ivp_stenosi50": { "type": "boolean" }
             },
-            "required": ["n_cartella", "nome", "cognome"]
+            "required": ["n_cartella", "nome", "cognome"],
+            "additionalProperties": True
+
         },
         "eco_preoperatorio": {
             "name": "eco_preoperatorio",
@@ -409,7 +411,9 @@ class PromptManager:
       "Valvola_polmonare_stenosi": { "type": "string" },
       "Valvola_polmonare_gradiente_med": { "type": "string" }
     },
-    "required": ["data_esame"]
+    "required": ["data_esame"],
+    "additionalProperties": True
+
         },
 
         "tc_cuore": {
@@ -506,7 +510,9 @@ class PromptManager:
                 "anti_SGLT2": {"type": "boolean"},
                 "ARNI": {"type": "boolean"}
             },
-            "required": ["n_cartella", "nome", "cognome", "data_intervento"]
+            "required": ["n_cartella", "nome", "cognome", "data_intervento"],
+            "additionalProperties": True
+
         },
              "anamnesi": {
         "name": "anamnesi",
