@@ -82,9 +82,7 @@ class DocumentController:
             
             validated_files.append(file)
         
-        # Validazione patient_id
-        if not patient_id:
-            return False, "Patient ID obbligatorio", []
+        # patient_id non è più obbligatorio: può essere generato automaticamente al primo upload
         
         # Validazione dimensione totale
         total_size = 0
@@ -143,6 +141,7 @@ class DocumentController:
         self,
         filepath: str,
         patient_id: str,
+        hospitalization_id: str | None,
         document_type: str,
         provided_anagraphic: dict = None,
         text: str = None
@@ -208,12 +207,37 @@ class DocumentController:
             positions_data = {}
 
         # 6. Verifica coerenza dei metadati
-        coherence_result = self.coherence_manager.check_document_coherence(patient_id, document_type, entities_for_save)
+        coherence_result = self.coherence_manager.check_document_coherence(
+            patient_id,
+            document_type,
+            entities_for_save,
+            hospitalization_id=hospitalization_id,
+        )
         
         if coherence_result.status == "rejected":
-            # Rimuovi il file e la cartella del paziente se necessario
-            os.remove(filepath)
-            if document_type == "lettera_dimissione":
+            try:
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+            except Exception:
+                pass
+
+            try:
+                meta_path = filepath + ".meta.json"
+                if os.path.exists(meta_path):
+                    os.remove(meta_path)
+            except Exception:
+                pass
+
+            try:
+                self._save_processing_error(
+                    patient_id,
+                    document_type,
+                    coherence_result.reason or "coherence_rejected",
+                )
+            except Exception:
+                pass
+
+            if document_type == "lettera_dimissione" and not hospitalization_id:
                 self.file_manager.remove_patient_folder_if_exists(patient_id)
             
             # Prepara la risposta di errore
@@ -230,19 +254,37 @@ class DocumentController:
             
             return error_response, 400
 
-        # 7. Controlli obbligatori (mantenuti per compatibilità)
-        if document_type in ("lettera_dimissione", "eco_preoperatorio"):
-            if not entities_for_save.get("n_cartella"):
-                os.remove(filepath)
-                self.file_manager.remove_patient_folder_if_exists(patient_id)
-                return {"error": f"Numero di cartella mancante per {document_type}."}, 400
+        # 7. Assicura n_cartella (non più bloccante: se manca, lo generiamo)
+        from utils.identifiers import generate_clinical_record_number
+
+        if not entities_for_save.get("n_cartella"):
+            clinical_from_hosp = None
+            if hospitalization_id and hospitalization_id.startswith("H_"):
+                candidate = hospitalization_id[len("H_"):]
+                if candidate.isdigit():
+                    clinical_from_hosp = candidate
+
+            entities_for_save["n_cartella"] = clinical_from_hosp or generate_clinical_record_number()
 
         # 8. Salva JSON in upload_folder configurata
-        output_dir = os.path.join(self.file_manager.UPLOAD_FOLDER, patient_id, document_type)
+        if hospitalization_id:
+            output_dir = os.path.join(
+                self.file_manager.UPLOAD_FOLDER,
+                patient_id,
+                hospitalization_id,
+                document_type,
+            )
+        else:
+            output_dir = os.path.join(self.file_manager.UPLOAD_FOLDER, patient_id, document_type)
         os.makedirs(output_dir, exist_ok=True)
         output_path = os.path.join(output_dir, "entities.json")
         # usa FileManager per salvare i dati
-        self.file_manager.save_entities_json(patient_id, document_type, entities_for_save)
+        self.file_manager.save_entities_json(
+            patient_id,
+            document_type,
+            entities_for_save,
+            hospitalization_id=hospitalization_id,
+        )
         
         # Salva anche le posizioni nel file entities.json come metadata
         entities_with_metadata = {
@@ -314,10 +356,20 @@ class DocumentController:
         patient_id: str,
         document_type: str,
         filename: str,
+        hospitalization_id: str | None = None,
         updated_entities: dict = None,
         preview: bool = False
     ) -> dict | list:
-        path = os.path.join(self.upload_folder, patient_id, document_type, "entities.json")
+        if hospitalization_id:
+            path = os.path.join(
+                self.upload_folder,
+                patient_id,
+                hospitalization_id,
+                document_type,
+                "entities.json",
+            )
+        else:
+            path = os.path.join(self.upload_folder, patient_id, document_type, "entities.json")
         if preview or not updated_entities:
             if os.path.exists(path):
                 with open(path, "r", encoding="utf-8") as f:
@@ -380,13 +432,16 @@ class DocumentController:
         # Estrai informazioni per il riprocessamento
         new_document_id = result["new_document_id"]
         patient_id = result["patient_id"]
+        hospitalization_id = result.get("hospitalization_id")
         filepath = result["new_path"]
         
         # Leggi anagrafica esistente se disponibile
         provided_anagraphic = None
         if new_document_type != "lettera_dimissione":
             provided_anagraphic = self.file_manager.read_existing_entities(
-                patient_id, "lettera_dimissione"
+                patient_id,
+                "lettera_dimissione",
+                hospitalization_id=hospitalization_id,
             )
         
         # Avvia processing in background
@@ -395,7 +450,11 @@ class DocumentController:
         def process_with_error_logging():
             try:
                 self.process_document_and_entities(
-                    filepath, patient_id, new_document_type, provided_anagraphic
+                    filepath,
+                    patient_id,
+                    hospitalization_id,
+                    new_document_type,
+                    provided_anagraphic,
                 )
             except Exception as e:
                 logging.exception(f"Errore critico nel processing di {filepath}: {e}")
@@ -439,6 +498,7 @@ class DocumentController:
         
         # Estrai informazioni dal document_detail
         patient_id = document_detail["patient_id"]
+        hospitalization_id = document_detail.get("hospitalization_id")
         current_document_type = document_detail["document_type"]
         pdf_path = document_detail["pdf_path"]
         
@@ -472,13 +532,16 @@ class DocumentController:
                 provided_anagraphic = None
                 if extraction_type != "lettera_dimissione":
                     provided_anagraphic = self.file_manager.read_existing_entities(
-                        patient_id, "lettera_dimissione"
+                        patient_id,
+                        "lettera_dimissione",
+                        hospitalization_id=hospitalization_id,
                     )
                 
                 # Esegui l'estrazione (usando il tipo specificato per il prompt)
                 entities_result = self.process_document_and_entities(
                     filepath,
                     patient_id,
+                    hospitalization_id,
                     extraction_type,  # Usa il tipo specificato per il prompt
                     provided_anagraphic
                 )
@@ -491,15 +554,38 @@ class DocumentController:
                 # Se il tipo di estrazione è diverso dal tipo originale, sposta le entità nella cartella originale
                 if extraction_type != current_document_type:
                     # Salva le entità nella cartella del documento originale (sovrascrivendo quelle esistenti)
-                    self.file_manager.save_entities_json(patient_id, current_document_type, entities_result)
+                    self.file_manager.save_entities_json(
+                        patient_id,
+                        current_document_type,
+                        entities_result,
+                        hospitalization_id=hospitalization_id,
+                    )
                     
                     # Aggiorna anche l'Excel con il tipo originale
                     self.excel_manager.update_excel(patient_id, current_document_type, entities_result)
                     
                     # Rimuovi le entità salvate nella cartella del tipo di estrazione (se diversa)
-                    extraction_dir = os.path.join(self.file_manager.UPLOAD_FOLDER, patient_id, extraction_type)
+                    if hospitalization_id:
+                        extraction_dir = os.path.join(
+                            self.file_manager.UPLOAD_FOLDER,
+                            patient_id,
+                            hospitalization_id,
+                            extraction_type,
+                        )
+                    else:
+                        extraction_dir = os.path.join(self.file_manager.UPLOAD_FOLDER, patient_id, extraction_type)
                     extraction_entities_path = os.path.join(extraction_dir, "entities.json")
-                    if os.path.exists(extraction_entities_path) and extraction_dir != os.path.join(self.file_manager.UPLOAD_FOLDER, patient_id, current_document_type):
+                    if hospitalization_id:
+                        current_dir = os.path.join(
+                            self.file_manager.UPLOAD_FOLDER,
+                            patient_id,
+                            hospitalization_id,
+                            current_document_type,
+                        )
+                    else:
+                        current_dir = os.path.join(self.file_manager.UPLOAD_FOLDER, patient_id, current_document_type)
+
+                    if os.path.exists(extraction_entities_path) and extraction_dir != current_dir:
                         try:
                             os.remove(extraction_entities_path)
                         except Exception as e:

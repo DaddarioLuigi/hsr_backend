@@ -15,6 +15,8 @@ import ocrmypdf
 
 from services.document_type_detector import DocumentTypeDetector
 from controller.controller import DocumentController
+from utils.identifiers import extract_clinical_record_number
+from utils.patient_registry import PatientRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,7 @@ class DocumentUploadResult:
         success: bool,
         document_id: Optional[str] = None,
         patient_id: Optional[str] = None,
+        hospitalization_id: Optional[str] = None,
         document_type: Optional[str] = None,
         filename: Optional[str] = None,
         error: Optional[str] = None,
@@ -35,6 +38,7 @@ class DocumentUploadResult:
         self.success = success
         self.document_id = document_id
         self.patient_id = patient_id
+        self.hospitalization_id = hospitalization_id
         self.document_type = document_type
         self.filename = filename
         self.error = error
@@ -46,6 +50,7 @@ class DocumentUploadResult:
             return {
                 "document_id": self.document_id,
                 "patient_id": self.patient_id,
+                "hospitalization_id": self.hospitalization_id,
                 "document_type": self.document_type,
                 "filename": self.filename,
                 "status": self.status
@@ -66,11 +71,13 @@ class DocumentUploadService:
         self.controller = controller
         self.upload_folder = upload_folder
         self.type_detector = DocumentTypeDetector()
+        self.patient_registry = PatientRegistry(upload_folder)
     
     def process_upload(
         self,
         file: FileStorage,
-        patient_id: Optional[str] = None
+        patient_id: Optional[str] = None,
+        hospitalization_id: Optional[str] = None,
     ) -> DocumentUploadResult:
         """
         Processa l'upload di un singolo documento.
@@ -168,27 +175,29 @@ class DocumentUploadService:
                 error=f"Errore estrazione testo: {str(e)}"
             )
         
-        # Determina il tipo di documento (dopo l'estrazione del testo)
-        document_type = self.type_detector.detect(filename, text)
-        logger.debug(f"Tipo documento rilevato: {document_type} per file {filename}")
-        
-        # Determina patient_id_final
-        patient_id_final = self._determine_patient_id(
-            document_type=document_type,
-            patient_id=patient_id,
-            text=text,
-            filename=filename
+        document_type, confidence, reasons = self.type_detector.detect_with_confidence(filename, text)
+        logger.debug(
+            f"Tipo documento rilevato: {document_type} (confidence={confidence:.2f}) per file {filename} "
+            f"reasons={reasons}"
         )
         
-        if not patient_id_final:
-            return DocumentUploadResult(
-                success=False,
-                filename=filename,
-                error="Non è stato possibile determinare il patient_id"
-            )
+        clinical_record_number = extract_clinical_record_number(text)
+        patient_id_final, hospitalization_id_final = self._resolve_patient_context(
+            patient_id=patient_id,
+            hospitalization_id=hospitalization_id,
+            clinical_record_number=clinical_record_number,
+        )
         
         # Verifica se esiste già un documento dello stesso tipo
-        patient_folder = os.path.join(self.upload_folder, patient_id_final, document_type)
+        if hospitalization_id_final:
+            patient_folder = os.path.join(
+                self.upload_folder,
+                patient_id_final,
+                hospitalization_id_final,
+                document_type,
+            )
+        else:
+            patient_folder = os.path.join(self.upload_folder, patient_id_final, document_type)
         if os.path.isdir(patient_folder):
             existing_pdfs = [f for f in os.listdir(patient_folder) if f.lower().endswith(".pdf")]
             if existing_pdfs:
@@ -204,7 +213,8 @@ class DocumentUploadService:
                 patient_id_final,
                 document_type,
                 filename,
-                file
+                file,
+                hospitalization_id=hospitalization_id_final,
             )
             logger.info(f"File salvato in: {filepath}")
         except Exception as e:
@@ -219,7 +229,9 @@ class DocumentUploadService:
         provided_anagraphic = None
         if document_type != "lettera_dimissione":
             provided_anagraphic = self.controller.file_manager.read_existing_entities(
-                patient_id_final, "lettera_dimissione"
+                patient_id_final,
+                "lettera_dimissione",
+                hospitalization_id=hospitalization_id_final,
             )
         
         # Avvia processing in background
@@ -228,7 +240,12 @@ class DocumentUploadService:
         def process_with_error_logging():
             try:
                 self.controller.process_document_and_entities(
-                    filepath, patient_id_final, document_type, provided_anagraphic, text
+                    filepath,
+                    patient_id_final,
+                    hospitalization_id_final,
+                    document_type,
+                    provided_anagraphic,
+                    text,
                 )
             except Exception as e:
                 logger.exception(f"Errore critico nel processing di {filename}: {e}")
@@ -237,55 +254,58 @@ class DocumentUploadService:
         
         # Costruisci document_id
         file_noext = os.path.splitext(filename)[0]
-        document_id = f"doc_{patient_id_final}_{document_type}_{file_noext}"
+        if hospitalization_id_final:
+            document_id = f"doc_{patient_id_final}_{hospitalization_id_final}_{document_type}_{file_noext}"
+        else:
+            document_id = f"doc_{patient_id_final}_{document_type}_{file_noext}"
         
         return DocumentUploadResult(
             success=True,
             document_id=document_id,
             patient_id=patient_id_final,
+            hospitalization_id=hospitalization_id_final,
             document_type=document_type,
             filename=filename,
             status="processing"
         )
-    
-    def _determine_patient_id(
+
+    def _resolve_patient_context(
         self,
-        document_type: str,
         patient_id: Optional[str],
-        text: str,
-        filename: str
-    ) -> Optional[str]:
-        """
-        Determina il patient_id finale per il documento.
-        
-        Returns:
-            patient_id finale o None se non determinabile
-        """
-        # Per lettera_dimissione: estrai da LLM se necessario
-        if document_type == "lettera_dimissione":
-            if patient_id:
-                return str(patient_id)
-            
-            # Tenta estrazione LLM per n_cartella
-            try:
-                response_str = self.controller.llm.get_response_from_document(
-                    text, document_type, model=self.controller.model_name
-                )
-                extracted_json = json.loads(response_str)
-                extracted_id = extracted_json.get("n_cartella")
-                
-                if extracted_id:
-                    return str(extracted_id)
-                else:
-                    logger.warning(f"Nessun n_cartella trovato in {filename}")
-                    return None
-            except Exception as e:
-                logger.error(f"Errore estrazione patient_id da LLM per {filename}: {e}")
-                return None
+        hospitalization_id: Optional[str],
+        clinical_record_number: Optional[str],
+    ) -> tuple[str, str]:
+        patient_id = (patient_id or "").strip()
+        hospitalization_id = (hospitalization_id or "").strip()
+
+        # Legacy: patient_id numerico = cartella clinica
+        if patient_id.isdigit():
+            hospitalization_id = hospitalization_id or f"H_{patient_id}"
+            existing_patient = self.patient_registry.find_patient_by_hospitalization_id(hospitalization_id)
+            patient_code = existing_patient or self.patient_registry.create_patient()
+            ctx = self.patient_registry.ensure_hospitalization(
+                patient_code,
+                clinical_record_number=patient_id,
+            )
+            return ctx.patient_id, ctx.hospitalization_id
+
+        if patient_id.startswith("P_"):
+            patient_code = patient_id
         else:
-            # Per altri tipi di documento, patient_id è obbligatorio
-            if not patient_id:
-                logger.warning(f"patient_id obbligatorio per tipo {document_type}")
-                return None
-            return str(patient_id)
+            # Primo upload senza patient_id
+            patient_code = self.patient_registry.create_patient() if not patient_id else patient_id
+
+        if hospitalization_id:
+            if hospitalization_id.isdigit():
+                hospitalization_id = f"H_{hospitalization_id}"
+            if not hospitalization_id.startswith("H_"):
+                hospitalization_id = f"H_{hospitalization_id}"
+            os.makedirs(os.path.join(self.upload_folder, patient_code, hospitalization_id), exist_ok=True)
+            return patient_code, hospitalization_id
+
+        ctx = self.patient_registry.ensure_hospitalization(
+            patient_code,
+            clinical_record_number=clinical_record_number,
+        )
+        return ctx.patient_id, ctx.hospitalization_id
 
