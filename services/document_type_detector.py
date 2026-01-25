@@ -15,6 +15,9 @@ DocumentType = Literal[
     "eco_preoperatorio",
     "eco_postoperatorio",
     "tc_cuore",
+    "anamnesi",
+    "epicrisi_ti",
+    "cartellino_anestesiologico",
     "altro"
 ]
 
@@ -26,6 +29,11 @@ class DocumentTypeDetector:
     
     @staticmethod
     def detect(filename: str, text: str = None) -> DocumentType:
+        detected_type, _, _ = DocumentTypeDetector.detect_with_confidence(filename, text)
+        return detected_type
+
+    @staticmethod
+    def detect_with_confidence(filename: str, text: str = None) -> tuple[DocumentType, float, list[str]]:
         """
         Determina il tipo di documento basandosi sul testo o sul nome del file.
         Prima controlla il testo per le keyword, poi usa il nome del file come fallback.
@@ -37,48 +45,86 @@ class DocumentTypeDetector:
         Returns:
             Tipo di documento identificato o "altro" se non riconosciuto
         """
-        # Se il testo è fornito, cerca le keyword nel testo
-        if text:
-            text_lower = text.lower()
-            
-            # Controlla le keyword nel testo
-            if "relazione clinica alla dimissione" in text_lower:
-                return "lettera_dimissione"
+        text_lower = (text or "").lower()
+        name = (filename or "").lower()
 
-            if (
-                "coronarografia" in text_lower
-                and "intervento chirurgico" not in text_lower
-                and "verbale operatorio" not in text_lower
-            ):
-                return "coronarografia"
+        scores: dict[DocumentType, int] = {
+            "lettera_dimissione": 0,
+            "coronarografia": 0,
+            "intervento": 0,
+            "eco_preoperatorio": 0,
+            "eco_postoperatorio": 0,
+            "tc_cuore": 0,
+            "anamnesi": 0,
+            "epicrisi_ti": 0,
+            "cartellino_anestesiologico": 0,
+            "altro": 0,
+        }
+        reasons: dict[DocumentType, list[str]] = {k: [] for k in scores.keys()}
 
-            if "intervento chirurgico" in text_lower or "verbale operatorio" in text_lower:
-                return "intervento"
+        def bump(doc_type: DocumentType, points: int, reason: str) -> None:
+            scores[doc_type] += points
+            reasons[doc_type].append(reason)
 
-            if "ecocardiogramma" in text_lower and "pre op" in text_lower:
-                return "eco_preoperatorio"
+        # Text signals
+        if "relazione clinica alla dimissione" in text_lower or "lettera di dimissione" in text_lower:
+            bump("lettera_dimissione", 6, "testo: dimissione")
 
-            if "ecocardiogramma" in text_lower and "post op" in text_lower:
-                return "eco_postoperatorio"
+        if "coronarografia" in text_lower or "angiografia coronarica" in text_lower:
+            bump("coronarografia", 4, "testo: coronarografia")
 
-            if "tc" in text_lower or "tac" in text_lower:
-                return "tc_cuore"
-        
-        # Se non c'è testo o non si trova nulla nel testo, usa il nome del file come fallback
-        name = filename.lower()
-        
-        if "dimissione" in name:
-            return "lettera_dimissione"
-        if "coronaro" in name:
-            return "coronarografia"
-        if "intervento" in name or "verbale" in name:
-            return "intervento"
+        if "verbale operatorio" in text_lower or "intervento chirurgico" in text_lower:
+            bump("intervento", 5, "testo: intervento/verbale")
+
+        if "ecocardiogramma" in text_lower or "ecocardiografia" in text_lower:
+            if "pre op" in text_lower or "pre-operator" in text_lower or "pre operator" in text_lower:
+                bump("eco_preoperatorio", 5, "testo: eco pre")
+            if "post op" in text_lower or "post-operator" in text_lower or "post operator" in text_lower:
+                bump("eco_postoperatorio", 5, "testo: eco post")
+
+        if "anamnesi" in text_lower or "cenni anamnestici" in text_lower:
+            bump("anamnesi", 4, "testo: anamnesi")
+
+        if "epicrisi" in text_lower and ("terapia intensiva" in text_lower or "rianimazione" in text_lower):
+            bump("epicrisi_ti", 5, "testo: epicrisi TI")
+
+        if (
+            "scheda anestesiologica" in text_lower
+            or "cartellino anestesiologico" in text_lower
+            or ("anestesi" in text_lower and "intervento" in text_lower)
+        ):
+            bump("cartellino_anestesiologico", 5, "testo: anestesia")
+
+        if "tomografia computerizzata" in text_lower or "tac" in text_lower or "tc" in text_lower:
+            if "cuore" in text_lower or "cardiac" in text_lower:
+                bump("tc_cuore", 4, "testo: TC/TAC cuore")
+
+        # Filename signals
+        if "dimiss" in name:
+            bump("lettera_dimissione", 3, "filename: dimissione")
+        if "coronaro" in name or "coro" in name:
+            bump("coronarografia", 2, "filename: coronaro")
+        if "verb" in name or "intervento" in name or "operator" in name:
+            bump("intervento", 2, "filename: intervento")
         if "eco" in name and "pre" in name:
-            return "eco_preoperatorio"
+            bump("eco_preoperatorio", 2, "filename: eco pre")
         if "eco" in name and "post" in name:
-            return "eco_postoperatorio"
+            bump("eco_postoperatorio", 2, "filename: eco post")
+        if "anamnesi" in name:
+            bump("anamnesi", 2, "filename: anamnesi")
+        if "epicrisi" in name or "ti" in name or "rianim" in name:
+            bump("epicrisi_ti", 1, "filename: epicrisi/ti")
+        if "anes" in name or "anest" in name:
+            bump("cartellino_anestesiologico", 2, "filename: anes")
         if "tc" in name or "tac" in name:
-            return "tc_cuore"
-        
-        return "altro"
+            bump("tc_cuore", 1, "filename: tc/tac")
+
+        best_type = max(scores.keys(), key=lambda t: scores[t])
+        best_score = scores[best_type]
+
+        if best_score < 3:
+            return "altro", 0.0, ["confidence bassa"]
+
+        confidence = min(1.0, best_score / 8.0)
+        return best_type, confidence, reasons[best_type]
 
