@@ -95,9 +95,27 @@ class MetadataCoherenceManager:
                 }
         return differences
     
-    def find_lettera_dimissione(self, patient_id: str) -> Optional[Dict[str, Any]]:
+    def find_lettera_dimissione(
+        self,
+        patient_id: str,
+        hospitalization_id: str | None = None,
+    ) -> Optional[Dict[str, Any]]:
         """Trova la lettera di dimissione per un paziente."""
-        lettera_path = os.path.join(self.upload_folder, patient_id, "lettera_dimissione", "entities.json")
+        if hospitalization_id:
+            lettera_path = os.path.join(
+                self.upload_folder,
+                patient_id,
+                hospitalization_id,
+                "lettera_dimissione",
+                "entities.json",
+            )
+        else:
+            lettera_path = os.path.join(
+                self.upload_folder,
+                patient_id,
+                "lettera_dimissione",
+                "entities.json",
+            )
         
         if not os.path.exists(lettera_path):
             return None
@@ -110,10 +128,16 @@ class MetadataCoherenceManager:
             self.logger.error(f"Errore nella lettura della lettera di dimissione: {e}")
             return None
     
-    def get_all_documents_metadata(self, patient_id: str) -> List[Tuple[str, Dict[str, Any]]]:
+    def get_all_documents_metadata(
+        self,
+        patient_id: str,
+        hospitalization_id: str | None = None,
+    ) -> List[Tuple[str, Dict[str, Any]]]:
         """Ottiene i metadati di tutti i documenti di un paziente (esclusa la LD)."""
         documents = []
         patient_folder = os.path.join(self.upload_folder, patient_id)
+        if hospitalization_id:
+            patient_folder = os.path.join(patient_folder, hospitalization_id)
         
         if not os.path.exists(patient_folder):
             return documents
@@ -138,12 +162,20 @@ class MetadataCoherenceManager:
         
         return documents
     
-    def check_coherence_with_lettera_dimissione(self, patient_id: str, new_metadata: Dict[str, Any]) -> CoherenceResult:
+    def check_coherence_with_lettera_dimissione(
+        self,
+        patient_id: str,
+        new_metadata: Dict[str, Any],
+        hospitalization_id: str | None = None,
+    ) -> CoherenceResult:
         """
         Verifica la coerenza di un nuovo documento con la lettera di dimissione.
         """
         # Trova la lettera di dimissione
-        ld_entities = self.find_lettera_dimissione(patient_id)
+        ld_entities = self.find_lettera_dimissione(
+            patient_id,
+            hospitalization_id=hospitalization_id,
+        )
         
         if not ld_entities:
             # Non c'è lettera di dimissione, accetta il documento
@@ -174,12 +206,20 @@ class MetadataCoherenceManager:
                 references="lettera_dimissione"
             )
     
-    def check_lettera_dimissione_coherence(self, patient_id: str, ld_metadata: Dict[str, Any]) -> CoherenceResult:
+    def check_lettera_dimissione_coherence(
+        self,
+        patient_id: str,
+        ld_metadata: Dict[str, Any],
+        hospitalization_id: str | None = None,
+    ) -> CoherenceResult:
         """
         Verifica la coerenza di una nuova lettera di dimissione con i documenti esistenti.
         """
         # Ottieni tutti i documenti esistenti
-        existing_docs = self.get_all_documents_metadata(patient_id)
+        existing_docs = self.get_all_documents_metadata(
+            patient_id,
+            hospitalization_id=hospitalization_id,
+        )
         
         if not existing_docs:
             # Nessun documento esistente, accetta la lettera di dimissione
@@ -215,23 +255,93 @@ class MetadataCoherenceManager:
                 incoerenti=incoerenti
             )
     
-    def check_document_coherence(self, patient_id: str, document_type: str, metadata: Dict[str, Any]) -> CoherenceResult:
+    def _load_patient_display_name(self, patient_id: str) -> str | None:
+        patient_json_path = os.path.join(self.upload_folder, patient_id, "patient.json")
+        if not os.path.exists(patient_json_path):
+            return None
+        try:
+            with open(patient_json_path, encoding="utf-8") as f:
+                data = json.load(f)
+            if not isinstance(data, dict):
+                return None
+            name = data.get("display_name") or data.get("name")
+            return str(name).strip() if name else None
+        except Exception:
+            return None
+
+    def _patient_identity_coherent(self, patient_id: str, metadata: Dict[str, Any]) -> CoherenceResult | None:
+        if not patient_id or not str(patient_id).startswith("P_"):
+            return None
+
+        display_name = self._load_patient_display_name(patient_id)
+        if not display_name:
+            return None
+
+        nome = metadata.get("nome")
+        cognome = metadata.get("cognome")
+        if not nome or not cognome:
+            return None
+
+        extracted = self.normalize_text(f"{nome} {cognome}")
+        expected = self.normalize_text(display_name)
+        if not extracted or not expected:
+            return None
+
+        extracted_compact = extracted.replace(" ", "")
+        expected_compact = expected.replace(" ", "")
+        if extracted_compact in expected_compact or expected_compact in extracted_compact:
+            return None
+
+        return CoherenceResult(
+            status="rejected",
+            reason="ERRORE_PAZIENTE_DIVERSO: Il documento sembra appartenere a un altro paziente.",
+            diff={
+                "patient_name": {
+                    "atteso": expected,
+                    "trovato": extracted,
+                }
+            },
+            references="patient.json",
+        )
+
+    def check_document_coherence(
+        self,
+        patient_id: str,
+        document_type: str,
+        metadata: Dict[str, Any],
+        hospitalization_id: str | None = None,
+    ) -> CoherenceResult:
         """
         Verifica la coerenza di un nuovo documento con tutti i documenti esistenti.
         """
+        identity_check = self._patient_identity_coherent(patient_id, metadata)
+        if identity_check:
+            return identity_check
+
         # Se è una lettera di dimissione, usa la logica specifica
         if document_type == "lettera_dimissione":
-            return self.check_lettera_dimissione_coherence(patient_id, metadata)
+            return self.check_lettera_dimissione_coherence(
+                patient_id,
+                metadata,
+                hospitalization_id=hospitalization_id,
+            )
         
         # Per altri documenti, verifica prima con la lettera di dimissione
-        ld_result = self.check_coherence_with_lettera_dimissione(patient_id, metadata)
+        ld_result = self.check_coherence_with_lettera_dimissione(
+            patient_id,
+            metadata,
+            hospitalization_id=hospitalization_id,
+        )
         
         if ld_result.status == "rejected":
             return ld_result
         
         # Se non c'è lettera di dimissione, verifica coerenza con altri documenti
         if ld_result.reason == "Nessuna lettera di dimissione presente":
-            existing_docs = self.get_all_documents_metadata(patient_id)
+            existing_docs = self.get_all_documents_metadata(
+                patient_id,
+                hospitalization_id=hospitalization_id,
+            )
             
             if not existing_docs:
                 return CoherenceResult(
