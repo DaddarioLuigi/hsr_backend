@@ -17,6 +17,73 @@ class FileManager:
         os.makedirs(self.UPLOAD_FOLDER, exist_ok=True)
         # S3Manager temporarily disabled
         self.s3_manager = None
+
+    def _build_document_folder(
+        self,
+        patient_id: str,
+        document_type: str,
+        hospitalization_id: str | None = None,
+    ) -> str:
+        if hospitalization_id:
+            return os.path.join(self.UPLOAD_FOLDER, patient_id, hospitalization_id, document_type)
+        return os.path.join(self.UPLOAD_FOLDER, patient_id, document_type)
+
+    def _parse_document_id(self, document_id: str) -> dict | None:
+        if not isinstance(document_id, str) or not document_id.startswith("doc_"):
+            return None
+
+        rest = document_id[len("doc_"):]
+        patient_id = None
+
+        m = re.match(r"^(P_[A-F0-9]{12})_(.+)$", rest)
+        if m:
+            patient_id = m.group(1)
+            remainder = m.group(2)
+        else:
+            try:
+                patient_id, remainder = rest.split("_", 1)
+            except ValueError:
+                return None
+
+        possible_types = [
+            "lettera_dimissione",
+            "anamnesi",
+            "epicrisi_ti",
+            "cartellino_anestesiologico",
+            "coronarografia",
+            "intervento",
+            "eco_preoperatorio",
+            "eco_postoperatorio",
+            "tc_cuore",
+            "altro",
+        ]
+        types_sorted = sorted(possible_types, key=lambda t: -len(t))
+
+        for t in types_sorted:
+            if remainder.startswith(t + "_"):
+                return {
+                    "patient_id": patient_id,
+                    "hospitalization_id": None,
+                    "document_type": t,
+                    "filename_noext": remainder[len(t) + 1:],
+                }
+
+        for t in types_sorted:
+            marker = f"_{t}_"
+            idx = remainder.find(marker)
+            if idx == -1:
+                continue
+            hospitalization_id = remainder[:idx]
+            if not hospitalization_id:
+                continue
+            return {
+                "patient_id": patient_id,
+                "hospitalization_id": hospitalization_id,
+                "document_type": t,
+                "filename_noext": remainder[idx + len(marker):],
+            }
+
+        return None
     
     def cleanup_temp_files(self, patient_id: str, document_type: str = None):
         """
@@ -83,9 +150,8 @@ class FileManager:
         # Normalizza il patient_id
         normalized = str(patient_id).strip()
         
-        # Rimuovi caratteri non validi (solo numeri e lettere)
-        import re
-        normalized = re.sub(r'[^a-zA-Z0-9]', '', normalized)
+        # Rimuovi caratteri non validi (consenti underscore per ID come P_... e H_...)
+        normalized = re.sub(r"[^a-zA-Z0-9_]", "", normalized)
         
         # Verifica che non sia vuoto dopo la normalizzazione
         if not normalized:
@@ -100,7 +166,14 @@ class FileManager:
         
         return True, normalized
 
-    def save_file(self, patient_id: str, document_type: str, filename: str, file_stream) -> tuple[str, dict | None]:
+    def save_file(
+        self,
+        patient_id: str,
+        document_type: str,
+        filename: str,
+        file_stream,
+        hospitalization_id: str | None = None,
+    ) -> tuple[str, dict | None]:
         # Validazione input
         if not patient_id or not document_type or not filename or not file_stream:
             raise ValueError("Tutti i parametri sono obbligatori")
@@ -121,7 +194,11 @@ class FileManager:
             raise ValueError("Filename non può essere vuoto")
         
         # 1) crea cartella locale
-        folder = os.path.join(self.UPLOAD_FOLDER, normalized_patient_id, document_type)
+        folder = self._build_document_folder(
+            normalized_patient_id,
+            document_type,
+            hospitalization_id=hospitalization_id,
+        )
         os.makedirs(folder, exist_ok=True)
 
         # 2) scrivi su disco
@@ -169,9 +246,18 @@ class FileManager:
             return {e.get("type") or e.get("entità"): e.get("value") or e.get("valore") for e in entities if (e.get("type") or e.get("entità")) is not None}
         return {}
 
-    def save_entities_json(self, patient_id: str, document_type: str, entities):
-        patient_folder = os.path.join(self.UPLOAD_FOLDER, patient_id)
-        document_folder = os.path.join(patient_folder, document_type)
+    def save_entities_json(
+        self,
+        patient_id: str,
+        document_type: str,
+        entities,
+        hospitalization_id: str | None = None,
+    ):
+        document_folder = self._build_document_folder(
+            patient_id,
+            document_type,
+            hospitalization_id=hospitalization_id,
+        )
         os.makedirs(document_folder, exist_ok=True)
         output_path = os.path.join(document_folder, "entities.json")
         entities_obj = self._entities_list_to_dict(entities)
@@ -181,8 +267,20 @@ class FileManager:
         # S3Manager rimosso - upload S3 non più supportato
 
 
-    def read_existing_entities(self, patient_id: str, document_type: str):
-        json_path = os.path.join(self.UPLOAD_FOLDER, patient_id, document_type, "entities.json")
+    def read_existing_entities(
+        self,
+        patient_id: str,
+        document_type: str,
+        hospitalization_id: str | None = None,
+    ):
+        json_path = os.path.join(
+            self._build_document_folder(
+                patient_id,
+                document_type,
+                hospitalization_id=hospitalization_id,
+            ),
+            "entities.json",
+        )
         if os.path.exists(json_path):
             with open(json_path, encoding="utf-8") as f:
                 return json.load(f)
@@ -193,10 +291,11 @@ class FileManager:
         patients = []
         if os.path.exists(self.UPLOAD_FOLDER):
             for patient_id in os.listdir(self.UPLOAD_FOLDER):
+                # Filtra cartelle che iniziano con _ (settings, pending, extract, etc.)
+                if patient_id.startswith("_"):
+                    continue
                 # Filtra pazienti con ID temporanei o pending
-                if (patient_id.startswith("_pending_") or 
-                    patient_id.startswith("_extract_") or 
-                    patient_id.startswith("unknown_")):
+                if patient_id.startswith("unknown_"):
                     continue
                 
                 # Per i pazienti che iniziano con "patient_", verifica se hanno documenti processati
@@ -231,67 +330,163 @@ class FileManager:
         patients = []
         if os.path.exists(self.UPLOAD_FOLDER):
             for patient_id in os.listdir(self.UPLOAD_FOLDER):
+                # Filtra cartelle che iniziano con _ (settings, pending, extract, etc.)
+                if patient_id.startswith("_"):
+                    continue
                 # Filtra pazienti con ID temporanei o pending
-                if (patient_id.startswith("_pending_") or 
-                    patient_id.startswith("_extract_") or 
-                    patient_id.startswith("unknown_")):
+                if patient_id.startswith("unknown_"):
+                    continue
+                
+                patient_path = os.path.join(self.UPLOAD_FOLDER, patient_id)
+                if not os.path.isdir(patient_path):
                     continue
                 
                 # Per i pazienti che iniziano con "patient_", verifica se hanno documenti processati
                 if patient_id.startswith("patient_"):
                     # Controlla se ci sono documenti processati (non solo temp_processing)
-                    patient_path = os.path.join(self.UPLOAD_FOLDER, patient_id)
-                    if not os.path.isdir(patient_path):
-                        continue
-                    
-                    # Cerca documenti processati (cartelle con entities.json)
                     has_processed_docs = False
-                    for doc_type in os.listdir(patient_path):
-                        doc_type_path = os.path.join(patient_path, doc_type)
-                        if os.path.isdir(doc_type_path) and doc_type != "temp_processing":
-                            entities_path = os.path.join(doc_type_path, "entities.json")
+                    for item in os.listdir(patient_path):
+                        item_path = os.path.join(patient_path, item)
+                        if not os.path.isdir(item_path):
+                            continue
+                        # Controlla ricoveri (H_*)
+                        if item.startswith("H_"):
+                            for doc_type in os.listdir(item_path):
+                                doc_type_path = os.path.join(item_path, doc_type)
+                                if os.path.isdir(doc_type_path):
+                                    entities_path = os.path.join(doc_type_path, "entities.json")
+                                    if os.path.exists(entities_path):
+                                        has_processed_docs = True
+                                        break
+                        # Controlla documenti legacy (direttamente nella cartella paziente)
+                        elif item != "temp_processing" and item != "errors":
+                            entities_path = os.path.join(item_path, "entities.json")
                             if os.path.exists(entities_path):
                                 has_processed_docs = True
                                 break
+                        if has_processed_docs:
+                            break
                     
                     # Se non ci sono documenti processati, salta questo paziente
                     if not has_processed_docs:
                         continue
-                    
-                patient_path = os.path.join(self.UPLOAD_FOLDER, patient_id)
-                if not os.path.isdir(patient_path):
-                    continue
+                
+                # Leggi patient.json per display_name
                 name = None
+                patient_json_path = os.path.join(patient_path, "patient.json")
+                if os.path.exists(patient_json_path):
+                    try:
+                        with open(patient_json_path, encoding="utf-8") as f:
+                            patient_data = json.load(f)
+                            name = patient_data.get("display_name") or patient_data.get("name")
+                    except Exception:
+                        pass
+                
                 document_count = 0
                 last_document_date = None
-                for doc_type in os.listdir(patient_path):
-                    doc_type_path = os.path.join(patient_path, doc_type)
-                    if not os.path.isdir(doc_type_path):
-                        continue
-                    entities_path = os.path.join(doc_type_path, "entities.json")
-                    if not name and os.path.exists(entities_path):
-                        try:
-                            with open(entities_path) as f:
-                                entities = json.load(f)
-                                nome = entities.get("nome", "")
-                                cognome = entities.get("cognome", "")
-                                name = f"{nome} {cognome}".strip()
-                        except Exception:
-                            pass
-                    for file in os.listdir(doc_type_path):
-                        if file.endswith(".pdf"):
-                            document_count += 1
-                            meta_path = os.path.join(doc_type_path, file + ".meta.json")
-                            if os.path.exists(meta_path):
+                
+                # Raccogli cartelle H_* (ricoveri)
+                hospitalization_dirs = []
+                for item in os.listdir(patient_path):
+                    item_path = os.path.join(patient_path, item)
+                    if os.path.isdir(item_path) and item.startswith("H_"):
+                        hospitalization_dirs.append(item)
+                
+                # Se ci sono ricoveri, cerca documenti dentro i ricoveri
+                if hospitalization_dirs:
+                    # Prima passata: cerca nome dalla lettera_dimissione (priorità)
+                    if not name:
+                        for hosp_id in hospitalization_dirs:
+                            hosp_path = os.path.join(patient_path, hosp_id)
+                            ld_path = os.path.join(hosp_path, "lettera_dimissione")
+                            if os.path.isdir(ld_path):
+                                entities_path = os.path.join(ld_path, "entities.json")
+                                if os.path.exists(entities_path):
+                                    try:
+                                        with open(entities_path, encoding="utf-8") as f:
+                                            entities = json.load(f)
+                                            nome = entities.get("nome", "")
+                                            cognome = entities.get("cognome", "")
+                                            if nome or cognome:
+                                                name = f"{nome} {cognome}".strip()
+                                                break
+                                    except Exception:
+                                        pass
+                    
+                    # Seconda passata: conta documenti e trova ultima data, e se name non trovato cerca da altri documenti
+                    for hosp_id in hospitalization_dirs:
+                        hosp_path = os.path.join(patient_path, hosp_id)
+                        for doc_type in os.listdir(hosp_path):
+                            doc_type_path = os.path.join(hosp_path, doc_type)
+                            if not os.path.isdir(doc_type_path):
+                                continue
+                            
+                            # Cerca entities.json per nome/cognome da qualsiasi documento se name non è ancora stato trovato
+                            if not name:
+                                entities_path = os.path.join(doc_type_path, "entities.json")
+                                if os.path.exists(entities_path):
+                                    try:
+                                        with open(entities_path, encoding="utf-8") as f:
+                                            entities = json.load(f)
+                                            nome = entities.get("nome", "")
+                                            cognome = entities.get("cognome", "")
+                                            if nome or cognome:
+                                                name = f"{nome} {cognome}".strip()
+                                    except Exception:
+                                        pass
+                            
+                            # Conta PDF e trova ultima data
+                            for file in os.listdir(doc_type_path):
+                                if file.endswith(".pdf"):
+                                    document_count += 1
+                                    meta_path = os.path.join(doc_type_path, file + ".meta.json")
+                                    if os.path.exists(meta_path):
+                                        try:
+                                            with open(meta_path, encoding="utf-8") as f:
+                                                meta = json.load(f)
+                                                upload_date = meta.get("upload_date")
+                                                if upload_date:
+                                                    if not last_document_date or upload_date > last_document_date:
+                                                        last_document_date = upload_date
+                                        except Exception:
+                                            pass
+                else:
+                    # Nessun ricovero: cerca documenti direttamente in patient_path (legacy)
+                    for doc_type in os.listdir(patient_path):
+                        doc_type_path = os.path.join(patient_path, doc_type)
+                        if not os.path.isdir(doc_type_path) or doc_type.startswith("H_") or doc_type.startswith("_"):
+                            continue
+                        
+                        # Cerca entities.json per nome/cognome
+                        if not name:
+                            entities_path = os.path.join(doc_type_path, "entities.json")
+                            if os.path.exists(entities_path):
                                 try:
-                                    with open(meta_path) as f:
-                                        meta = json.load(f)
-                                        upload_date = meta.get("upload_date")
-                                        if upload_date:
-                                            if not last_document_date or upload_date > last_document_date:
-                                                last_document_date = upload_date
+                                    with open(entities_path, encoding="utf-8") as f:
+                                        entities = json.load(f)
+                                        nome = entities.get("nome", "")
+                                        cognome = entities.get("cognome", "")
+                                        if nome or cognome:
+                                            name = f"{nome} {cognome}".strip()
                                 except Exception:
                                     pass
+                        
+                        # Conta PDF e trova ultima data
+                        for file in os.listdir(doc_type_path):
+                            if file.endswith(".pdf"):
+                                document_count += 1
+                                meta_path = os.path.join(doc_type_path, file + ".meta.json")
+                                if os.path.exists(meta_path):
+                                    try:
+                                        with open(meta_path, encoding="utf-8") as f:
+                                            meta = json.load(f)
+                                            upload_date = meta.get("upload_date")
+                                            if upload_date:
+                                                if not last_document_date or upload_date > last_document_date:
+                                                    last_document_date = upload_date
+                                    except Exception:
+                                        pass
+                
                 patients.append({
                     "id": patient_id,
                     "name": name or patient_id,
@@ -307,112 +502,161 @@ class FileManager:
         if os.path.isdir(patient_path):
             name = None
             documents = []
-            for doc_type in os.listdir(patient_path):
-                doc_type_path = os.path.join(patient_path, doc_type)
-                if not os.path.isdir(doc_type_path):
-                    continue
-                # Cerca entities.json per nome/cognome
-                entities_path = os.path.join(doc_type_path, "entities.json")
-                if not name and os.path.exists(entities_path):
-                    try:
-                        with open(entities_path) as f:
-                            entities = json.load(f)
-                            nome = entities.get("nome", "")
-                            cognome = entities.get("cognome", "")
-                            name = f"{nome} {cognome}".strip()
-                    except Exception:
-                        pass
-                # Cerca PDF e meta.json
-                for file in os.listdir(doc_type_path):
-                    if file.endswith(".pdf"):
-                        filename = file
-                        meta_path = os.path.join(doc_type_path, file + ".meta.json")
-                        upload_date = None
-                        if os.path.exists(meta_path):
-                            try:
-                                with open(meta_path) as f:
-                                    meta = json.load(f)
-                                    upload_date = meta.get("upload_date")
-                            except Exception:
-                                pass
-                        # entities.json per count e status
-                        entities_count = 0
-                        status = "processing"
-                        if os.path.exists(entities_path):
+            hospitalization_dirs = []
+            
+            # Raccogli cartelle H_* (ricoveri)
+            for item in os.listdir(patient_path):
+                item_path = os.path.join(patient_path, item)
+                if os.path.isdir(item_path) and item.startswith("H_"):
+                    hospitalization_dirs.append(item)
+            
+            # Se ci sono ricoveri, cerca documenti dentro i ricoveri
+            if hospitalization_dirs:
+                for hosp_id in sorted(hospitalization_dirs):
+                    hosp_path = os.path.join(patient_path, hosp_id)
+                    for doc_type in os.listdir(hosp_path):
+                        doc_type_path = os.path.join(hosp_path, doc_type)
+                        if not os.path.isdir(doc_type_path):
+                            continue
+                        # Cerca entities.json per nome/cognome (solo dalla LD)
+                        entities_path = os.path.join(doc_type_path, "entities.json")
+                        if not name and doc_type == "lettera_dimissione" and os.path.exists(entities_path):
                             try:
                                 with open(entities_path) as f:
                                     entities = json.load(f)
-                                    entities_count = len(entities) if isinstance(entities, dict) else 0
-                                    status = "processed"
+                                    nome = entities.get("nome", "")
+                                    cognome = entities.get("cognome", "")
+                                    name = f"{nome} {cognome}".strip()
                             except Exception:
                                 pass
-                        
-                        # Costruisci document_id - gestisci documenti del flusso unificato
-                        file_noext = os.path.splitext(filename)[0]
-                        if file_noext.endswith(f"_{doc_type}"):
-                            # Documento del flusso unificato: estrai nome originale
-                            original_filename = file_noext.replace(f"_{doc_type}", "")
-                            doc_id = f"doc_{patient_id}_{doc_type}_{original_filename}"
-                        else:
-                            # Documento singolo: usa il filename così com'è
-                            doc_id = f"doc_{patient_id}_{doc_type}_{file_noext}"
-                        
-                        documents.append({
-                            "id": doc_id,
-                            "filename": filename,
-                            "document_type": doc_type,
-                            "upload_date": upload_date,
-                            "entities_count": entities_count,
-                            "status": status,
-                        })
+                        # Cerca PDF e meta.json
+                        for file in os.listdir(doc_type_path):
+                            if file.endswith(".pdf"):
+                                filename = file
+                                meta_path = os.path.join(doc_type_path, file + ".meta.json")
+                                upload_date = None
+                                if os.path.exists(meta_path):
+                                    try:
+                                        with open(meta_path) as f:
+                                            meta = json.load(f)
+                                            upload_date = meta.get("upload_date")
+                                    except Exception:
+                                        pass
+                                # entities.json per count e status
+                                entities_count = 0
+                                status = "processing"
+                                if os.path.exists(entities_path):
+                                    try:
+                                        with open(entities_path) as f:
+                                            entities = json.load(f)
+                                            entities_count = len(entities) if isinstance(entities, dict) else 0
+                                            status = "processed"
+                                    except Exception:
+                                        pass
+                                
+                                # Costruisci document_id con hospitalization_id
+                                file_noext = os.path.splitext(filename)[0]
+                                doc_id = f"doc_{patient_id}_{hosp_id}_{doc_type}_{file_noext}"
+                                
+                                documents.append({
+                                    "id": doc_id,
+                                    "filename": filename,
+                                    "document_type": doc_type,
+                                    "upload_date": upload_date,
+                                    "entities_count": entities_count,
+                                    "status": status,
+                                    "hospitalization_id": hosp_id,
+                                })
+            else:
+                # Nessun ricovero: cerca documenti direttamente in patient_path (legacy)
+                for doc_type in os.listdir(patient_path):
+                    doc_type_path = os.path.join(patient_path, doc_type)
+                    if not os.path.isdir(doc_type_path) or doc_type.startswith("H_") or doc_type.startswith("_"):
+                        continue
+                    # Cerca entities.json per nome/cognome
+                    entities_path = os.path.join(doc_type_path, "entities.json")
+                    if not name and os.path.exists(entities_path):
+                        try:
+                            with open(entities_path) as f:
+                                entities = json.load(f)
+                                nome = entities.get("nome", "")
+                                cognome = entities.get("cognome", "")
+                                name = f"{nome} {cognome}".strip()
+                        except Exception:
+                            pass
+                    # Cerca PDF e meta.json
+                    for file in os.listdir(doc_type_path):
+                        if file.endswith(".pdf"):
+                            filename = file
+                            meta_path = os.path.join(doc_type_path, file + ".meta.json")
+                            upload_date = None
+                            if os.path.exists(meta_path):
+                                try:
+                                    with open(meta_path) as f:
+                                        meta = json.load(f)
+                                        upload_date = meta.get("upload_date")
+                                except Exception:
+                                    pass
+                            # entities.json per count e status
+                            entities_count = 0
+                            status = "processing"
+                            if os.path.exists(entities_path):
+                                try:
+                                    with open(entities_path) as f:
+                                        entities = json.load(f)
+                                        entities_count = len(entities) if isinstance(entities, dict) else 0
+                                        status = "processed"
+                                except Exception:
+                                    pass
+                            
+                            # Costruisci document_id - gestisci documenti del flusso unificato
+                            file_noext = os.path.splitext(filename)[0]
+                            if file_noext.endswith(f"_{doc_type}"):
+                                # Documento del flusso unificato: estrai nome originale
+                                original_filename = file_noext.replace(f"_{doc_type}", "")
+                                doc_id = f"doc_{patient_id}_{doc_type}_{original_filename}"
+                            else:
+                                # Documento singolo: usa il filename così com'è
+                                doc_id = f"doc_{patient_id}_{doc_type}_{file_noext}"
+                            
+                            documents.append({
+                                "id": doc_id,
+                                "filename": filename,
+                                "document_type": doc_type,
+                                "upload_date": upload_date,
+                                "entities_count": entities_count,
+                                "status": status,
+                            })
+            
             return {
                 "id": patient_id,
                 "name": name or patient_id,
+                "hospitalizations": sorted(hospitalization_dirs),
                 "documents": documents
             }
         return None
 
     def get_document_detail(self, document_id):
-        # document_id: doc_{patient_id}_{document_type}_{filename senza estensione}
-        import os, re, json
-        # Funzione di normalizzazione per confronto case-insensitive e senza caratteri speciali
-        def normalize(s):
-            return re.sub(r'[^a-z0-9]', '', s.lower())
+        import os
+        import json
 
-        # Parsing robusto dell'ID
-        if not document_id.startswith("doc_"):
-            return None
-        rest = document_id[len("doc_"):]
-        try:
-            patient_id, remainder = rest.split('_', 1)
-        except ValueError:
+        parsed = self._parse_document_id(document_id)
+        if not parsed:
             return None
 
-        # Lista dei tipi di documenti supportati
-        possible_types = [
-            "lettera_dimissione",
-            "anamnesi",
-            "epicrisi_ti",
-            "cartellino_anestesiologico",
-            "coronarografia",
-            "intervento",
-            "eco_preoperatorio",
-            "eco_postoperatorio",
-            "tc_cuore",
-            "altro"
-        ]
-        # Ricerca del document_type nel resto della stringa
-        document_type = next(
-            (t for t in possible_types if remainder.startswith(t + "_")),
-            None
+        patient_id = parsed["patient_id"]
+        hospitalization_id = parsed["hospitalization_id"]
+        document_type = parsed["document_type"]
+        filename_noext = parsed["filename_noext"]
+
+        def normalize(s: str) -> str:
+            return re.sub(r"[^a-z0-9]", "", (s or "").lower())
+
+        folder = self._build_document_folder(
+            patient_id,
+            document_type,
+            hospitalization_id=hospitalization_id,
         )
-        if not document_type:
-            return None
-
-        # Estrai il nome del file senza estensione
-        filename_noext = remainder[len(document_type) + 1:]
-        # Costruisci il percorso della cartella
-        folder = os.path.join(self.UPLOAD_FOLDER, patient_id, document_type)
 
         # Cerca il PDF in modo case-insensitive e ignorando underscore/spazi
         pdf_file = None
@@ -505,10 +749,13 @@ class FileManager:
             logging.warning(f"PDF non trovato in {pdf_path} per document_id {document_id}")
             return None
         relative_pdf_path = os.path.join(patient_id, document_type, pdf_file).replace("\\", "/")
+        if hospitalization_id:
+            relative_pdf_path = os.path.join(patient_id, hospitalization_id, document_type, pdf_file).replace("\\", "/")
         
         return {
             "id": document_id,
             "patient_id": patient_id,
+            "hospitalization_id": hospitalization_id,
             "document_type": document_type,
             "filename": filename,
             "pdf_path": f"/uploads/{relative_pdf_path}",
@@ -523,36 +770,16 @@ class FileManager:
         """
         import os, json, logging
         try:
-            if not document_id.startswith("doc_"):
+            parsed = self._parse_document_id(document_id)
+            if not parsed:
                 logging.error(f"ID documento non valido: {document_id}")
                 return False
-            rest = document_id[len("doc_"):]
-            parts = rest.split("_", 1)
-            if len(parts) < 2:
-                logging.error(f"Formato document_id inaspettato: {document_id}")
-                return False
-            patient_id, remainder = parts
-            possible_types = [
-                "lettera_dimissione",
-                "anamnesi",
-                "epicrisi_ti",
-                "cartellino_anestesiologico",
-                "coronarografia",
-                "intervento",
-                "eco_preoperatorio",
-                "eco_postoperatorio",
-                "tc_cuore",
-                "altro"
-            ]
-            document_type = None
-            for t in sorted(possible_types, key=lambda x: -len(x)):
-                if remainder.startswith(t + "_") or remainder == t:
-                    document_type = t
-                    break
-            if not document_type:
-                logging.error(f"Impossibile determinare document_type da: {remainder}")
-                return False
-            folder = os.path.join(self.UPLOAD_FOLDER, patient_id, document_type)
+
+            folder = self._build_document_folder(
+                parsed["patient_id"],
+                parsed["document_type"],
+                hospitalization_id=parsed["hospitalization_id"],
+            )
             entities_path = os.path.join(folder, "entities.json")
             entities_obj = self._entities_list_to_dict(entities)
             with open(entities_path, "w", encoding="utf-8") as f:
@@ -571,37 +798,25 @@ class FileManager:
         Ritorna un dict con esito e flag su cartelle rimosse.
         """
         import logging
-        # Parsing robusto, simile a get_document_detail
-        if not isinstance(document_id, str) or not document_id.startswith("doc_"):
+        parsed = self._parse_document_id(document_id)
+        if not parsed:
             return {"success": False, "error": "document_id non valido"}
-        rest = document_id[len("doc_"):]
-        try:
-            patient_id, remainder = rest.split("_", 1)
-        except ValueError:
-            return {"success": False, "error": "Formato document_id non valido"}
-        possible_types = [
-            "lettera_dimissione",
-            "anamnesi",
-            "epicrisi_ti",
-            "cartellino_anestesiologico",
-            "coronarografia",
-            "intervento",
-            "eco_preoperatorio",
-            "eco_postoperatorio",
-            "tc_cuore",
-            "altro"
-        ]
-        document_type = next((t for t in possible_types if remainder.startswith(t + "_") or remainder == t), None)
-        if not document_type:
-            return {"success": False, "error": "Impossibile determinare document_type"}
-        filename_noext = remainder[len(document_type) + 1:] if remainder != document_type else ""
+
+        patient_id = parsed["patient_id"]
+        hospitalization_id = parsed["hospitalization_id"]
+        document_type = parsed["document_type"]
+        filename_noext = parsed["filename_noext"]
 
         import re
         def normalize(s: str) -> str:
             return re.sub(r'[^a-z0-9]', '', (s or '').lower())
 
         import os, shutil, json
-        folder = os.path.join(self.UPLOAD_FOLDER, patient_id, document_type)
+        folder = self._build_document_folder(
+            patient_id,
+            document_type,
+            hospitalization_id=hospitalization_id,
+        )
         if not os.path.isdir(folder):
             return {"success": False, "error": "Cartella documento non trovata"}
 
@@ -661,8 +876,19 @@ class FileManager:
         except Exception as e:
             logging.warning(f"Impossibile rimuovere cartella {folder}: {e}")
 
-        # Se il paziente non ha più alcuna sottocartella, rimuovi anche il paziente
+        # Se ricovero vuoto, rimuovilo
+        hospitalization_deleted = False
         patient_folder = os.path.join(self.UPLOAD_FOLDER, patient_id)
+        if hospitalization_id:
+            hosp_folder = os.path.join(patient_folder, hospitalization_id)
+            try:
+                if os.path.isdir(hosp_folder) and not os.listdir(hosp_folder):
+                    shutil.rmtree(hosp_folder)
+                    hospitalization_deleted = True
+            except Exception as e:
+                logging.warning(f"Impossibile rimuovere cartella ricovero {hosp_folder}: {e}")
+
+        # Se il paziente non ha più alcuna sottocartella, rimuovi anche il paziente
         patient_deleted = False
         try:
             if os.path.isdir(patient_folder):
@@ -673,7 +899,12 @@ class FileManager:
         except Exception as e:
             logging.warning(f"Impossibile rimuovere cartella paziente {patient_folder}: {e}")
 
-        return {"success": True, "patient_deleted": patient_deleted, "document_type_deleted": document_type_deleted}
+        return {
+            "success": True,
+            "patient_deleted": patient_deleted,
+            "hospitalization_deleted": hospitalization_deleted,
+            "document_type_deleted": document_type_deleted,
+        }
 
     def move_patient_folder(self, src_patient_id: str, dst_patient_id: str) -> bool:
         src = os.path.join(self.UPLOAD_FOLDER, str(src_patient_id))
@@ -704,24 +935,16 @@ class FileManager:
         """
         import os, shutil, logging
         
-        # Validazione: il documento deve essere di tipo "altro"
-        if not document_id.startswith("doc_"):
+        parsed = self._parse_document_id(document_id)
+        if not parsed:
             return {"success": False, "error": "document_id non valido"}
-        
-        rest = document_id[len("doc_"):]
-        try:
-            patient_id, remainder = rest.split("_", 1)
-        except ValueError:
-            return {"success": False, "error": "Formato document_id non valido"}
-        
-        # Verifica che il documento sia di tipo "altro"
-        if remainder == "altro":
-            # Caso in cui il document_id è solo "altro" senza filename
-            filename_noext = ""
-        elif remainder.startswith("altro_"):
-            # Caso standard: "altro_{filename_noext}"
-            filename_noext = remainder[len("altro_"):]
-        else:
+
+        patient_id = parsed["patient_id"]
+        hospitalization_id = parsed["hospitalization_id"]
+        document_type = parsed["document_type"]
+        filename_noext = parsed["filename_noext"]
+
+        if document_type != "altro":
             return {"success": False, "error": "Il documento non è di tipo 'altro'"}
         
         # Verifica che il nuovo tipo sia valido
@@ -741,8 +964,16 @@ class FileManager:
             return {"success": False, "error": f"Tipo documento '{new_document_type}' non valido"}
         
         # Percorsi delle cartelle
-        old_folder = os.path.join(self.UPLOAD_FOLDER, patient_id, "altro")
-        new_folder = os.path.join(self.UPLOAD_FOLDER, patient_id, new_document_type)
+        old_folder = self._build_document_folder(
+            patient_id,
+            "altro",
+            hospitalization_id=hospitalization_id,
+        )
+        new_folder = self._build_document_folder(
+            patient_id,
+            new_document_type,
+            hospitalization_id=hospitalization_id,
+        )
         
         if not os.path.isdir(old_folder):
             return {"success": False, "error": "Cartella documento originale non trovata"}
@@ -816,16 +1047,76 @@ class FileManager:
             logging.warning(f"Errore rimozione cartella 'altro': {e}")
         
         # Costruisci il nuovo document_id
-        new_document_id = f"doc_{patient_id}_{new_document_type}_{filename_noext}"
+        if hospitalization_id:
+            new_document_id = f"doc_{patient_id}_{hospitalization_id}_{new_document_type}_{filename_noext}"
+        else:
+            new_document_id = f"doc_{patient_id}_{new_document_type}_{filename_noext}"
         
         return {
             "success": True,
             "old_document_id": document_id,
             "new_document_id": new_document_id,
             "patient_id": patient_id,
+            "hospitalization_id": hospitalization_id,
             "old_document_type": "altro",
             "new_document_type": new_document_type,
             "filename": target_pdf,
             "old_path": old_pdf_path,
             "new_path": new_pdf_path
+        }
+
+    def move_document_to_hospitalization(
+        self,
+        document_id: str,
+        to_hospitalization_id: str,
+    ) -> dict:
+        """
+        Sposta una cartella documento (document_type) da un ricovero a un altro.
+        Implementazione volutamente semplice: un documento per tipo per ricovero.
+        """
+        parsed = self._parse_document_id(document_id)
+        if not parsed:
+            return {"success": False, "error": "document_id non valido"}
+
+        patient_id = parsed["patient_id"]
+        from_hosp = parsed["hospitalization_id"]
+        document_type = parsed["document_type"]
+        filename_noext = parsed["filename_noext"]
+
+        if not patient_id.startswith("P_"):
+            return {"success": False, "error": "Move supportato solo per pazienti P_*"}
+        if not from_hosp:
+            return {"success": False, "error": "Documento senza ricovero (legacy) non spostabile"}
+
+        to_hosp = str(to_hospitalization_id).strip()
+        if to_hosp.isdigit():
+            to_hosp = f"H_{to_hosp}"
+        if not to_hosp.startswith("H_"):
+            to_hosp = f"H_{to_hosp}"
+
+        src = self._build_document_folder(patient_id, document_type, hospitalization_id=from_hosp)
+        dst = self._build_document_folder(patient_id, document_type, hospitalization_id=to_hosp)
+
+        if not os.path.isdir(src):
+            return {"success": False, "error": "Cartella sorgente non trovata"}
+        if os.path.exists(dst):
+            existing_pdfs = [f for f in os.listdir(dst) if f.lower().endswith(".pdf")]
+            if existing_pdfs:
+                return {
+                    "success": False,
+                    "error": f"Esiste già un documento '{document_type}' nel ricovero di destinazione",
+                }
+
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.move(src, dst)
+
+        new_document_id = f"doc_{patient_id}_{to_hosp}_{document_type}_{filename_noext}"
+        return {
+            "success": True,
+            "old_document_id": document_id,
+            "new_document_id": new_document_id,
+            "patient_id": patient_id,
+            "from_hospitalization_id": from_hosp,
+            "to_hospitalization_id": to_hosp,
+            "document_type": document_type,
         }
