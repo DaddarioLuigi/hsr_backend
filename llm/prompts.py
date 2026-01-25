@@ -1,5 +1,7 @@
 # llm/prompts.py
 
+import json
+import os
 from typing import Dict, List
 
 
@@ -1541,13 +1543,95 @@ Questo esempio serve per capire solamente il formato di input/output
             raise ValueError(f"Schema non definito per {document_type}")
         return self.SCHEMAS[document_type]
 
+    def _overrides_path(self) -> str:
+        env_path = os.getenv("PROMPTS_OVERRIDES_PATH")
+        if env_path:
+            return env_path
+
+        upload_folder = os.path.abspath(os.getenv("UPLOAD_FOLDER", "./uploads"))
+        return os.path.join(upload_folder, "_settings", "prompts_overrides.json")
+
+    def _load_prompt_overrides(self) -> dict[str, str]:
+        path = self._overrides_path()
+        if not os.path.exists(path):
+            return {}
+
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            return {}
+
+        if not isinstance(data, dict):
+            return {}
+
+        overrides: dict[str, str] = {}
+        for k, v in data.items():
+            if isinstance(k, str) and isinstance(v, str):
+                overrides[k] = v
+        return overrides
+
+    def _write_prompt_overrides(self, overrides: dict[str, str]) -> None:
+        path = self._overrides_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        tmp_path = f"{path}.tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(overrides, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, path)
+
     def get_prompt_for(self, document_type: str) -> str:
         """
         Restituisce il prompt testuale per il tipo di documento.
         """
         if document_type not in self.PROMPTS:
             raise ValueError(f"Prompt non definito per {document_type}")
+        override = self._load_prompt_overrides().get(document_type)
+        if isinstance(override, str) and override.strip():
+            return override
         return self.PROMPTS[document_type]
+
+    def get_default_prompt_for(self, document_type: str) -> str:
+        if document_type not in self.PROMPTS:
+            raise ValueError(f"Prompt non definito per {document_type}")
+        return self.PROMPTS[document_type]
+
+    def set_prompt_override(self, document_type: str, prompt: str) -> dict:
+        if document_type not in self.PROMPTS:
+            raise ValueError(f"Prompt non definito per {document_type}")
+        if not isinstance(prompt, str) or not prompt.strip():
+            raise ValueError("prompt non valido")
+        if len(prompt) > 100_000:
+            raise ValueError("prompt troppo lungo")
+
+        overrides = self._load_prompt_overrides()
+        overrides[document_type] = prompt
+        self._write_prompt_overrides(overrides)
+        return self.get_prompt_info(document_type)
+
+    def clear_prompt_override(self, document_type: str) -> dict:
+        if document_type not in self.PROMPTS:
+            raise ValueError(f"Prompt non definito per {document_type}")
+
+        overrides = self._load_prompt_overrides()
+        overrides.pop(document_type, None)
+        self._write_prompt_overrides(overrides)
+        return self.get_prompt_info(document_type)
+
+    def get_prompt_info(self, document_type: str) -> dict:
+        default_prompt = self.get_default_prompt_for(document_type)
+        overrides = self._load_prompt_overrides()
+        override = overrides.get(document_type)
+        is_overridden = isinstance(override, str) and override.strip() and override != default_prompt
+        return {
+            "document_type": document_type,
+            "prompt": self.get_prompt_for(document_type),
+            "default_prompt": default_prompt,
+            "is_overridden": bool(is_overridden),
+        }
+
+    def list_prompt_infos(self) -> list[dict]:
+        return [self.get_prompt_info(dt) for dt in sorted(self.PROMPTS.keys())]
 
     def get_spec_for(self, document_type: str) -> Dict[str, List[str]]:
         """
